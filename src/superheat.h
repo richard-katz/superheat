@@ -3,7 +3,7 @@
 #define FNAME_LENGTH  120
 
 typedef struct {
-  PetscInt  ni, ns;      // number of grid points, max number of time steps
+  PetscInt  ni, ns, dofs;// number of grid points, max number of time steps
   PetscReal R0;          // initial radius
   PetscReal t, dt, tmax; // current time, time-step, maximum time
   char      filename[FNAME_LENGTH];
