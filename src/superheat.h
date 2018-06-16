@@ -23,3 +23,4 @@ PetscErrorCode SetUpParameters(AppCtx*);
 PetscErrorCode SetUpDataStructures(AppCtx*);
 PetscErrorCode CleanUpDataStructures(AppCtx*);
 PetscErrorCode FormResidual(SNES, Vec, Vec, void*);
+PetscErrorCode FormJacobian(SNES, Vec, Mat, Mat, void*);

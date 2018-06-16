@@ -23,6 +23,18 @@ int main(int argc,char **argv)
 
 /* ------------------------------------------------------------------- */
 #undef __FUNCT__
+#define __FUNCT__ "FormJacobian"
+PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
+/* ------------------------------------------------------------------- */
+{
+  PetscErrorCode  ierr;
+  AppCtx          *user = (AppCtx*)ptr;
+  PetscFunctionBegin;
+  PetscFunctionReturn(0);
+}
+
+/* ------------------------------------------------------------------- */
+#undef __FUNCT__
 #define __FUNCT__ "FormResidual"
 PetscErrorCode FormResidual(SNES snes, Vec X, Vec R, void *ptr)
 /* ------------------------------------------------------------------- */
@@ -98,12 +110,14 @@ PetscErrorCode SetUpDataStructures(AppCtx *user)
   /* matricies */
   ierr = MatCreate(user->comm,&user->J);CHKERRQ(ierr);
   ierr = MatSetSizes(user->J,PETSC_DECIDE,PETSC_DECIDE,par->dofs,par->dofs);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(user->J,3,NULL); CHKERRQ(ierr); // FIX THIS
   ierr = MatSetFromOptions(user->J);CHKERRQ(ierr);
   ierr = MatSetUp(user->J); CHKERRQ(ierr);
   
   /* solvers */
   ierr = SNESCreate(user->comm,&user->snes);CHKERRQ(ierr);
   ierr = SNESSetFunction(user->snes,user->R,FormResidual,(void*)user);
+  ierr = SNESSetJacobian(user->snes,user->J,user->J,FormJacobian,NULL);
   ierr = SNESSetFromOptions(user->snes);CHKERRQ(ierr);
   
   PetscFunctionReturn(0);
