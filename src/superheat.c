@@ -1,9 +1,5 @@
 #include "superheat.h"
 
-PetscErrorCode SetUpParameters(AppCtx*);
-PetscErrorCode SetUpDataStructures(AppCtx*);
-PetscErrorCode CleanUpDataStructures(AppCtx*);
-
 /*-----------------------------------------------------------------------*/
 #undef __FUNCT__
 #define __FUNCT__ "main"
@@ -17,10 +13,35 @@ int main(int argc,char **argv)
   PetscInitialize(&argc,&argv,(char *)0,PETSC_NULL);
   ierr = SetUpParameters(&user);CHKERRQ(ierr);
   ierr = SetUpDataStructures(&user);CHKERRQ(ierr);
+
+  ierr = SNESSolve(user.snes,NULL,user.X);CHKERRQ(ierr);
   
   ierr = CleanUpDataStructures(&user);CHKERRQ(ierr);
   ierr = PetscFinalize();
   return 0;
+}
+
+/* ------------------------------------------------------------------- */
+#undef __FUNCT__
+#define __FUNCT__ "FormResidual"
+PetscErrorCode FormResidual(SNES snes, Vec X, Vec R, void *ptr)
+/* ------------------------------------------------------------------- */
+{
+  PetscErrorCode  ierr;
+  AppCtx          *user = (AppCtx*)ptr;
+  PetscReal const *x;
+  PetscReal       *res;
+  PetscInt        i;
+  
+  PetscFunctionBegin;
+  ierr = VecGetArrayRead(X,&x); CHKERRQ(ierr);
+  ierr = VecGetArray(R,&res); CHKERRQ(ierr);
+
+  for (i=0; i<user->param->dofs; i++) { res[i] = x[i] - i; }
+  
+  ierr = VecRestoreArray(R,&res); CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(X,&x); CHKERRQ(ierr);
+  PetscFunctionReturn(0);
 }
 
 /*-----------------------------------------------------------------------*/
@@ -42,7 +63,7 @@ PetscErrorCode SetUpParameters(AppCtx *user)
 
   /* Register parameters */
   ierr = PetscBagRegisterInt(user->bag,&par->ni,100,"ni","Number of grid points"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(user->bag,&par->dofs,par->ni,"dofs","<DO NOT SET> Total number of degrees of freedom"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(user->bag,&par->dofs,par->ni+N_ODES,"dofs","<DO NOT SET> Total number of degrees of freedom"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->ns,10000,"ns","Number of time steps"); CHKERRQ(ierr);
 
   /* Display parameters */
@@ -76,9 +97,8 @@ PetscErrorCode SetUpDataStructures(AppCtx *user)
 
   /* SNES */
   ierr = SNESCreate(user->comm,&user->snes);CHKERRQ(ierr);
-  //ierr = SNESSetFunction(user->snes,user->R,FormResidual,(void*)user);
+  ierr = SNESSetFunction(user->snes,user->R,FormResidual,(void*)user);
   ierr = SNESSetFromOptions(user->snes);CHKERRQ(ierr);
-  ierr = SNESSetUp(user->snes);CHKERRQ(ierr);
   
   PetscFunctionReturn(0);
 }
