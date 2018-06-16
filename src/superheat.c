@@ -25,21 +25,38 @@ int main(int argc,char **argv)
   return 0;
 }
 
-/*-----------------------------------------------------------------------*/
+/* ------------------------------------------------------------------- */
 #undef __FUNCT__
-#define __FUNCT__ "DoSolve"
-PetscErrorCode DoSolve(AppCtx *user)
-/*-----------------------------------------------------------------------*/
+#define __FUNCT__ "FormResidual"
+PetscErrorCode FormResidual(SNES snes, Vec X, Vec R, void *ptr)
+/* ------------------------------------------------------------------- */
 {
-  PetscErrorCode ierr;
-  PetscInt       n;
+  PetscErrorCode  ierr;
+  AppCtx          *user = (AppCtx*)ptr;
+  PetscReal const *x, *xo;
+  PetscReal       dr, r, *res, delsq, tend;
+  PetscInt        i, is, ie;
+  
   PetscFunctionBeginUser;
-  for (n=0; n<user->param->ns; n++) {
-    ierr = SNESSolve(user->snes,NULL,user->X);CHKERRQ(ierr);
-    ierr = VecCopy(user->X,user->Xo); CHKERRQ(ierr);
-    user->param->t += user->param->dt;
-    ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
+  ierr = VecGetArrayRead(X,&x); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(user->Xo,&xo); CHKERRQ(ierr);
+  ierr = VecGetArray(R,&res); CHKERRQ(ierr);
+
+  is = 0; ie = user->param->ni-1;
+  dr = 1./(user->param->ni-2);
+  res[is] = x[is] - x[is+1];     is++;
+  res[ie] = x[ie] + x[ie-1] - 0; ie--;
+  
+  for (i=is; i<=ie; i++) {
+    r = dr*(i-0.5);
+    tend  = (x[i] - xo[i])/user->param->dt;
+    delsq = (x[i-1] - 2*x[i] + x[i+1])/dr/dr + (x[i+1] - x[i-1])/r/dr;
+    res[i] = delsq - tend;
   }
+  
+  ierr = VecRestoreArray(R,&res); CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(user->Xo,&xo); CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(X,&x); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -77,38 +94,35 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   PetscFunctionReturn(0);
 }
 
-/* ------------------------------------------------------------------- */
+/*-----------------------------------------------------------------------*/
 #undef __FUNCT__
-#define __FUNCT__ "FormResidual"
-PetscErrorCode FormResidual(SNES snes, Vec X, Vec R, void *ptr)
-/* ------------------------------------------------------------------- */
+#define __FUNCT__ "SetUpParameters"
+PetscErrorCode SetUpParameters(AppCtx *user)
+/*-----------------------------------------------------------------------*/
 {
-  PetscErrorCode  ierr;
-  AppCtx          *user = (AppCtx*)ptr;
-  PetscReal const *x, *xo;
-  PetscReal       dr, r, *res, delsq, tend;
-  PetscInt        i, is, ie;
-  
+  PetscErrorCode ierr;
+  Parameter      *par;
   PetscFunctionBeginUser;
-  ierr = VecGetArrayRead(X,&x); CHKERRQ(ierr);
-  ierr = VecGetArrayRead(user->Xo,&xo); CHKERRQ(ierr);
-  ierr = VecGetArray(R,&res); CHKERRQ(ierr);
 
-  is = 0; ie = user->param->ni-1;
-  dr = 1./(user->param->ni-2);
-  res[is] = x[is] - x[is+1];     is++;
-  res[ie] = x[ie] + x[ie-1] - 0; ie--;
-  
-  for (i=is; i<=ie; i++) {
-    r = dr*(i-0.5);
-    tend  = (x[i] - xo[i])/user->param->dt;
-    delsq = (x[i-1] - 2*x[i] + x[i+1])/dr/dr + (x[i+1] - x[i-1])/r/dr;
-    res[i] = -tend + delsq;
-  }
-  
-  ierr = VecRestoreArray(R,&res); CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(user->Xo,&xo); CHKERRQ(ierr);
-  ierr = VecRestoreArrayRead(X,&x); CHKERRQ(ierr);
+  /* Set up data structures */
+  user->comm = PETSC_COMM_WORLD;
+  ierr = PetscBagCreate(user->comm,sizeof(Parameter),&(user->bag)); CHKERRQ(ierr); 
+  ierr = PetscBagGetData(user->bag,(void**)&user->param);CHKERRQ(ierr);
+  ierr = PetscBagSetName(user->bag,"par","(parameters for crystal superheating problem)");CHKERRQ(ierr);
+  par = user->param;
+
+  /* Register parameters */
+  ierr = PetscBagRegisterInt(user->bag,&par->ni,100,"ni","Number of grid points"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(user->bag,&par->dofs,par->ni+N_ODES,"dofs","<DO NOT SET> Total number of degrees of freedom"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(user->bag,&par->ns,100,"ns","Number of time steps"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(user->bag,&par->t,0,"t","Time");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(user->bag,&par->dt,1e-3,"dt","Time-step size");CHKERRQ(ierr);
+  ierr = PetscBagRegisterString(user->bag,&par->filename,FNAME_LENGTH,"test","filename","Name of output file");CHKERRQ(ierr);
+
+  /* Display parameters */
+  ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
+  ierr = PetscBagView(user->bag,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -140,38 +154,6 @@ PetscErrorCode SetUpInitialGuess(AppCtx *user)
   PetscFunctionBeginUser;
   ierr = VecSet(user->X,1);CHKERRQ(ierr);
   ierr = VecSet(user->Xo,1);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-/*-----------------------------------------------------------------------*/
-#undef __FUNCT__
-#define __FUNCT__ "SetUpParameters"
-PetscErrorCode SetUpParameters(AppCtx *user)
-/*-----------------------------------------------------------------------*/
-{
-  PetscErrorCode ierr;
-  Parameter      *par;
-  PetscFunctionBeginUser;
-
-  /* Set up data structures */
-  user->comm = PETSC_COMM_WORLD;
-  ierr = PetscBagCreate(user->comm,sizeof(Parameter),&(user->bag)); CHKERRQ(ierr); 
-  ierr = PetscBagGetData(user->bag,(void**)&user->param);CHKERRQ(ierr);
-  ierr = PetscBagSetName(user->bag,"par","(parameters for crystal superheating problem)");CHKERRQ(ierr);
-  par = user->param;
-
-  /* Register parameters */
-  ierr = PetscBagRegisterInt(user->bag,&par->ni,100,"ni","Number of grid points"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(user->bag,&par->dofs,par->ni+N_ODES,"dofs","<DO NOT SET> Total number of degrees of freedom"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(user->bag,&par->ns,100,"ns","Number of time steps"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(user->bag,&par->t,0,"t","Time");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(user->bag,&par->dt,1e-3,"dt","Time-step size");CHKERRQ(ierr);
-  ierr = PetscBagRegisterString(user->bag,&par->filename,FNAME_LENGTH,"test","filename","Name of output file");CHKERRQ(ierr);
-
-  /* Display parameters */
-  ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
-  ierr = PetscBagView(user->bag,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -228,5 +210,23 @@ PetscErrorCode CleanUpDataStructures(AppCtx *user)
   ierr = VecDestroy(&user->R);CHKERRQ(ierr);
   ierr = MatDestroy(&user->J);CHKERRQ(ierr);
   ierr = SNESDestroy(&user->snes);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
+/*-----------------------------------------------------------------------*/
+#undef __FUNCT__
+#define __FUNCT__ "DoSolve"
+PetscErrorCode DoSolve(AppCtx *user)
+/*-----------------------------------------------------------------------*/
+{
+  PetscErrorCode ierr;
+  PetscInt       n;
+  PetscFunctionBeginUser;
+  for (n=0; n<user->param->ns; n++) {
+    ierr = SNESSolve(user->snes,NULL,user->X);CHKERRQ(ierr);
+    ierr = VecCopy(user->X,user->Xo); CHKERRQ(ierr);
+    user->param->t += user->param->dt;
+    ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
+  }
   PetscFunctionReturn(0);
 }
