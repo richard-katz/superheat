@@ -10,7 +10,7 @@ int main(int argc,char **argv)
   PetscErrorCode ierr;
   
   /* initialize PETSc */
-  PetscInitialize(&argc,&argv,(char *)0,PETSC_NULL);
+  PetscInitialize(&argc,&argv,(char*)0,PETSC_NULL);
   ierr = SetUpParameters(&user);CHKERRQ(ierr);
   ierr = SetUpDataStructures(&user);CHKERRQ(ierr);
 
@@ -117,17 +117,17 @@ PetscErrorCode SetUpDataStructures(AppCtx *user)
   /* matricies */
   ierr = MatCreate(user->comm,&user->J);CHKERRQ(ierr);
   ierr = MatSetSizes(user->J,PETSC_DECIDE,PETSC_DECIDE,par->dofs,par->dofs);CHKERRQ(ierr);
-  ierr = MatSetType(user->J,MATAIJ);CHKERRQ(ierr);
+  ierr = MatSetType(user->J,MATSEQAIJ);CHKERRQ(ierr);
   ierr = MatSeqAIJSetPreallocation(user->J,1,NULL); CHKERRQ(ierr); // FIX THIS
-  ierr = MatMPIAIJSetPreallocation(user->J,1,NULL,1,NULL);
-  //ierr = MatSetFromOptions(user->J);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(user->J);CHKERRQ(ierr);
   ierr = MatSetUp(user->J); CHKERRQ(ierr);
   
   /* solvers */
   ierr = SNESCreate(user->comm,&user->snes);CHKERRQ(ierr);
   ierr = SNESSetFunction(user->snes,user->R,FormResidual,(void*)user);
-  ierr = SNESSetJacobian(user->snes,user->J,user->J,FormJacobian,NULL);
+  ierr = SNESSetJacobian(user->snes,user->J,user->J,FormJacobian,(void*)user);
   ierr = SNESSetFromOptions(user->snes);CHKERRQ(ierr);
+  ierr = SNESSetUp(user->snes);
   
   PetscFunctionReturn(0);
 }
