@@ -29,7 +29,14 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
 {
   PetscErrorCode  ierr;
   AppCtx          *user = (AppCtx*)ptr;
+  PetscInt        i;
+  PetscReal       A=1;
   PetscFunctionBegin;
+  for (i=0; i<user->param->dofs; i++) {
+    ierr = MatSetValues(J,1,&i,1,&i,&A,INSERT_VALUES);CHKERRQ(ierr);
+  }
+  ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -110,8 +117,10 @@ PetscErrorCode SetUpDataStructures(AppCtx *user)
   /* matricies */
   ierr = MatCreate(user->comm,&user->J);CHKERRQ(ierr);
   ierr = MatSetSizes(user->J,PETSC_DECIDE,PETSC_DECIDE,par->dofs,par->dofs);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(user->J,3,NULL); CHKERRQ(ierr); // FIX THIS
-  ierr = MatSetFromOptions(user->J);CHKERRQ(ierr);
+  ierr = MatSetType(user->J,MATAIJ);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(user->J,1,NULL); CHKERRQ(ierr); // FIX THIS
+  ierr = MatMPIAIJSetPreallocation(user->J,1,NULL,1,NULL);
+  //ierr = MatSetFromOptions(user->J);CHKERRQ(ierr);
   ierr = MatSetUp(user->J); CHKERRQ(ierr);
   
   /* solvers */

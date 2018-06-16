@@ -1,7 +1,7 @@
 #include "petsc.h"
 
 #define FNAME_LENGTH  120
-#define N_ODES 3
+#define N_ODES 0
 
 typedef struct {
   PetscInt  ni, ns, dofs;// number of grid points, max number of time steps
