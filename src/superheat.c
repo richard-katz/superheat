@@ -95,7 +95,13 @@ PetscErrorCode SetUpDataStructures(AppCtx *user)
   ierr = VecDuplicate(user->X,&user->R);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject)user->R,"R"); CHKERRQ(ierr);
 
-  /* SNES */
+  /* matricies */
+  ierr = MatCreate(user->comm,&user->J);CHKERRQ(ierr);
+  ierr = MatSetSizes(user->J,PETSC_DECIDE,PETSC_DECIDE,par->dofs,par->dofs);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(user->J);CHKERRQ(ierr);
+  ierr = MatSetUp(user->J); CHKERRQ(ierr);
+  
+  /* solvers */
   ierr = SNESCreate(user->comm,&user->snes);CHKERRQ(ierr);
   ierr = SNESSetFunction(user->snes,user->R,FormResidual,(void*)user);
   ierr = SNESSetFromOptions(user->snes);CHKERRQ(ierr);
@@ -114,6 +120,7 @@ PetscErrorCode CleanUpDataStructures(AppCtx *user)
   ierr = VecDestroy(&user->X);CHKERRQ(ierr);
   ierr = VecDestroy(&user->Xo);CHKERRQ(ierr);
   ierr = VecDestroy(&user->R);CHKERRQ(ierr);
+  ierr = MatDestroy(&user->J);CHKERRQ(ierr);
   ierr = SNESDestroy(&user->snes);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

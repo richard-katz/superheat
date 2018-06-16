@@ -14,6 +14,7 @@ typedef struct {
   Parameter     *param;
   PetscBag      bag;
   Vec           X, Xo, R;
+  Mat           J;
   SNES          snes;
   MPI_Comm      comm;
 } AppCtx;
