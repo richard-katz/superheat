@@ -7,6 +7,7 @@ typedef struct {
   PetscInt  ni, ns, dofs;// number of grid points, max number of time steps
   PetscReal R0;          // initial radius
   PetscReal t, dt, tmax; // current time, time-step, maximum time
+  PetscBool make_output;
   char      filename[FNAME_LENGTH];
 } Parameter;
 
@@ -21,6 +22,9 @@ typedef struct {
 
 PetscErrorCode SetUpParameters(AppCtx*);
 PetscErrorCode SetUpDataStructures(AppCtx*);
+PetscErrorCode SetUpInitialGuess(AppCtx*);
+PetscErrorCode DoSolve(AppCtx*);
 PetscErrorCode CleanUpDataStructures(AppCtx*);
+PetscErrorCode WriteOutput(AppCtx*);
 PetscErrorCode FormResidual(SNES, Vec, Vec, void*);
 PetscErrorCode FormJacobian(SNES, Vec, Mat, Mat, void*);
