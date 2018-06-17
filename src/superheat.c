@@ -28,20 +28,26 @@ int main(int argc,char **argv)
 /* ------------------------------------------------------------------- */
 #undef __FUNCT__
 #define __FUNCT__ "FormResidual"
-PetscErrorCode FormResidual(SNES snes, Vec X, Vec R, void *ptr)
+PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
 /* ------------------------------------------------------------------- */
 {
   PetscErrorCode  ierr;
   AppCtx          *user = (AppCtx*)ptr;
   PetscReal const *x, *xo;
-  PetscReal       dr, r, *res, delsq, tend;
-  PetscInt        i, is, ie;
+  PetscReal       dt = user->param->dt;
+  PetscReal       dr, r, R, *res, delsq, Rdot, Cdot, mvcrd;
+  PetscInt        i, is, ie, iR;
   
   PetscFunctionBeginUser;
   ierr = VecGetArrayRead(X,&x); CHKERRQ(ierr);
   ierr = VecGetArrayRead(user->Xo,&xo); CHKERRQ(ierr);
-  ierr = VecGetArray(R,&res); CHKERRQ(ierr);
+  ierr = VecGetArray(Res,&res); CHKERRQ(ierr);
   dr = 1./(user->param->ni-2);
+
+  /* radius ODE */
+  iR = user->param->dofs - N_ODES;
+  R = x[iR];  Rdot  = (x[iR] - xo[iR])/dt;
+  res[iR] = Rdot + 1; // FIX THIS
   
   /* diffusion boundary conditions */
   is = 0; ie = user->param->ni-1;
@@ -51,17 +57,13 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec R, void *ptr)
   /* diffusion PDE */
   for (i=is; i<=ie; i++) {
     r = dr*(i-0.5);
-    tend  = (x[i] - xo[i])/user->param->dt;
-    delsq = (x[i-1] - 2*x[i] + x[i+1])/dr/dr + (x[i+1] - x[i-1])/r/dr;
-    res[i] = delsq - tend;
+    Cdot  = (x[i] - xo[i])/dt;
+    delsq = ((x[i-1] - 2*x[i] + x[i+1])/dr/dr + (x[i+1] - x[i-1])/r/dr)/R/R;
+    mvcrd = r*Rdot*(x[i+1] - x[i-1])/(2*dr);
+    res[i] = mvcrd + delsq - Cdot;
   }
-
-  /* radius ODE */
-  i = user->param->dofs - N_ODES;
-  tend  = (x[i] - xo[i])/user->param->dt;
-  res[i] = tend + 1;
   
-  ierr = VecRestoreArray(R,&res); CHKERRQ(ierr);
+  ierr = VecRestoreArray(Res,&res); CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(user->Xo,&xo); CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(X,&x); CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -75,13 +77,22 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
 {
   PetscErrorCode  ierr;
   AppCtx          *user = (AppCtx*)ptr;
-  PetscInt        row, col[3], is, ie;
-  PetscReal       A[3], dr, r, dt;
+  PetscReal const *x, *xo;
+  PetscInt        row, col[4], is, ie, rowR;
+  PetscReal       A[4], dr, r, dt, R, Rdot, delsq;
   PetscFunctionBeginUser;
+  ierr = VecGetArrayRead(X,&x); CHKERRQ(ierr);
+  ierr = VecGetArrayRead(user->Xo,&xo); CHKERRQ(ierr);
 
   is = 0; ie = user->param->ni-1;
   dr = 1./(user->param->ni-2);
   dt = user->param->dt;
+
+  /* radius ODE */
+  rowR = user->param->dofs - N_ODES;
+  R = x[rowR];  Rdot = (x[rowR] - xo[rowR])/dt; 
+  col[0] = rowR; A[0] = 1/dt;
+  ierr = MatSetValues(J,1,&rowR,1,col,A,INSERT_VALUES);CHKERRQ(ierr);
 
   /* diffusion boundary conditions */
   col[0]=is;   A[0] = +1;
@@ -94,18 +105,20 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   /* diffusion PDE */
   for (row=is; row<=ie; row++) {
     r = dr*(row-0.5);
-    col[0] = row-1; col[1] = row; col[2] = row+1;
-    A[0] = (1/dr - 1/r)/dr; A[1] = -2/dr/dr - 1/dt; A[2] = (1/dr + 1/r)/dr;
-    ierr = MatSetValues(J,1,&row,3,col,A,INSERT_VALUES);CHKERRQ(ierr);
+    col[0] = row-1; col[1] = row; col[2] = row+1; col[3] = rowR;
+    /*left*/ A[0] = (1/dr - 1/r)/dr/R/R - r*Rdot/(2*dr);
+    /*cntr*/ A[1] = -2/dr/dr/R/R - 1/dt;
+    /*rght*/ A[2] = (1/dr + 1/r)/dr/R/R + r*Rdot/(2*dr);
+    delsq = ((x[row-1] - 2*x[row] + x[row+1])/dr/dr + (x[row+1] - x[row-1])/r/dr)/R/R;    
+    /*R   */ A[3] = r*(x[row+1] - x[row-1])/(2*dr)/dt - 2*delsq/R;
+    ierr = MatSetValues(J,1,&row,4,col,A,INSERT_VALUES);CHKERRQ(ierr);
   }
-
-  /* radius ODE */
-  row = user->param->dofs - N_ODES;
-  col[0] = row; A[0] = 1/dt;
-  ierr = MatSetValues(J,1,&row,1,col,A,INSERT_VALUES);CHKERRQ(ierr);
   
   ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  
+  ierr = VecRestoreArrayRead(user->Xo,&xo); CHKERRQ(ierr);
+  ierr = VecRestoreArrayRead(X,&x); CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -198,7 +211,7 @@ PetscErrorCode SetUpDataStructures(AppCtx *user)
   ierr = MatCreate(user->comm,&user->J);CHKERRQ(ierr);
   ierr = MatSetSizes(user->J,PETSC_DECIDE,PETSC_DECIDE,par->dofs,par->dofs);CHKERRQ(ierr);
   ierr = MatSetType(user->J,MATSEQAIJ);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(user->J,3,NULL); CHKERRQ(ierr); // FIX THIS
+  ierr = MatSeqAIJSetPreallocation(user->J,4,NULL); CHKERRQ(ierr); // FIX THIS
   ierr = MatSetFromOptions(user->J);CHKERRQ(ierr);
   ierr = MatSetUp(user->J); CHKERRQ(ierr);
   
