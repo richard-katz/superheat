@@ -4,10 +4,16 @@
 #define N_ODES 1
 
 typedef struct {
+  /* numerical model parameters */
   PetscInt  ni, ns, dofs;// number of grid points, max number of time steps
   PetscReal t, dt, tmax; // current time, time-step, maximum time
   PetscBool make_output;
   char      filename[FNAME_LENGTH];
+
+  /* physical parameters */
+  PetscReal K;     // Partition coefficient
+  PetscReal Pdot;  // Dimensionless decompression rate
+  PetscReal St;    // Stefan number
 } Parameter;
 
 typedef struct {

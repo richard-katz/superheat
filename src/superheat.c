@@ -139,7 +139,7 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   ierr = PetscBagSetName(user->bag,"par","(parameters for crystal superheating problem)");CHKERRQ(ierr);
   par = user->param;
 
-  /* Register parameters */
+  /* Register numerical model parameters */
   ierr = PetscBagRegisterInt(user->bag,&par->ni,100,"ni","Number of grid points"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->dofs,par->ni+N_ODES,"dofs","<DO NOT SET> Total number of degrees of freedom"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->ns,100,"ns","Number of time steps"); CHKERRQ(ierr);
@@ -147,6 +147,11 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   ierr = PetscBagRegisterReal(user->bag,&par->dt,1e-3,"dt","Time-step size");CHKERRQ(ierr);
   ierr = PetscBagRegisterString(user->bag,&par->filename,FNAME_LENGTH,"test","filename","Name of output file");CHKERRQ(ierr);
 
+  /* Register physical parameters */
+  ierr = PetscBagRegisterReal(user->bag,&par->K,1e-2,"K","Parition coefficient");CHKERRQ(ierr);  
+  ierr = PetscBagRegisterReal(user->bag,&par->Pdot,1,"Pdot","Dimensionless decompression rate");CHKERRQ(ierr);  
+  ierr = PetscBagRegisterReal(user->bag,&par->St,1,"St","Stefan number");CHKERRQ(ierr);  
+  
   /* Display parameters */
   ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
   ierr = PetscBagView(user->bag,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
