@@ -41,18 +41,25 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec R, void *ptr)
   ierr = VecGetArrayRead(X,&x); CHKERRQ(ierr);
   ierr = VecGetArrayRead(user->Xo,&xo); CHKERRQ(ierr);
   ierr = VecGetArray(R,&res); CHKERRQ(ierr);
-
-  is = 0; ie = user->param->ni-1;
   dr = 1./(user->param->ni-2);
+  
+  /* diffusion boundary conditions */
+  is = 0; ie = user->param->ni-1;
   res[is] = x[is] - x[is+1];     is++;
   res[ie] = x[ie] + x[ie-1] - 0; ie--;
-  
+
+  /* diffusion PDE */
   for (i=is; i<=ie; i++) {
     r = dr*(i-0.5);
     tend  = (x[i] - xo[i])/user->param->dt;
     delsq = (x[i-1] - 2*x[i] + x[i+1])/dr/dr + (x[i+1] - x[i-1])/r/dr;
     res[i] = delsq - tend;
   }
+
+  /* radius ODE */
+  i = user->param->dofs - N_ODES;
+  tend  = (x[i] - xo[i])/user->param->dt;
+  res[i] = tend + 1;
   
   ierr = VecRestoreArray(R,&res); CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(user->Xo,&xo); CHKERRQ(ierr);
@@ -76,6 +83,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   dr = 1./(user->param->ni-2);
   dt = user->param->dt;
 
+  /* diffusion boundary conditions */
   col[0]=is;   A[0] = +1;
   col[1]=is+1; A[1] = -1;
   ierr = MatSetValues(J,1,&is,2,col,A,INSERT_VALUES);CHKERRQ(ierr); is++; 
@@ -83,12 +91,19 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   col[1]=ie;   A[1] = +1;
   ierr = MatSetValues(J,1,&ie,2,col,A,INSERT_VALUES);CHKERRQ(ierr); ie--;
   
+  /* diffusion PDE */
   for (row=is; row<=ie; row++) {
     r = dr*(row-0.5);
     col[0] = row-1; col[1] = row; col[2] = row+1;
     A[0] = (1/dr - 1/r)/dr; A[1] = -2/dr/dr - 1/dt; A[2] = (1/dr + 1/r)/dr;
     ierr = MatSetValues(J,1,&row,3,col,A,INSERT_VALUES);CHKERRQ(ierr);
   }
+
+  /* radius ODE */
+  row = user->param->dofs - N_ODES;
+  col[0] = row; A[0] = 1/dt;
+  ierr = MatSetValues(J,1,&row,1,col,A,INSERT_VALUES);CHKERRQ(ierr);
+  
   ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   PetscFunctionReturn(0);
