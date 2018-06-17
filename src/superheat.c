@@ -12,6 +12,7 @@ int main(int argc,char **argv)
   /* initialize */
   PetscInitialize(&argc,&argv,(char*)0,PETSC_NULL);
   ierr = SetUpParameters(&user);CHKERRQ(ierr);
+  ierr = PetscOptionsInsert(NULL,&argc,&argv,PETSC_NULL);CHKERRQ(ierr);
   ierr = SetUpDataStructures(&user);CHKERRQ(ierr);
 
   /* form IC, solve and output */
@@ -50,7 +51,7 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   iR = user->param->dofs - N_ODES;
   R = x[iR];  Rdot  = (x[iR] - xo[iR])/dt;
   CdotR = 0.5*((x[ie]+x[ie-1]) - (xo[ie]+xo[ie-1]))/dt;
-  meltrate = -1; //(par->Pdot - CdotR)/(par->St); // - (x[ie] - x[ie-1])/dr);
+  meltrate = par->Pdot/par->St; 
   res[iR] = Rdot - meltrate;
   
   /* diffusion boundary conditions */
@@ -96,8 +97,8 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   rowR = user->param->dofs - N_ODES;
   R = x[rowR];  Rdot = (x[rowR] - xo[rowR])/dt; 
   col[0] = rowR;  A[0] = 1/dt;
-  col[1] = ie-1;  A[1] = 0; //-0.5/dt/par->St;
-  col[2] = ie;    A[2] = 0; //-0.5/dt/par->St;
+  col[1] = ie-1;  A[1] = 0;
+  col[2] = ie;    A[2] = 0;
   ierr = MatSetValues(J,1,&rowR,3,col,A,INSERT_VALUES);CHKERRQ(ierr);
 
   /* diffusion boundary conditions */
@@ -150,7 +151,7 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   ierr = PetscBagRegisterInt(user->bag,&par->dofs,par->ni+N_ODES,"dofs","<DO NOT SET> Total number of degrees of freedom"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->ns,100,"ns","Number of time steps"); CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(user->bag,&par->t,0,"t","Time");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(user->bag,&par->dt,1e-3,"dt","Time-step size");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(user->bag,&par->dt,1e-4,"dt","Time-step size");CHKERRQ(ierr);
   ierr = PetscBagRegisterString(user->bag,&par->filename,FNAME_LENGTH,"test","filename","Name of output file");CHKERRQ(ierr);
 
   /* Register physical parameters */
@@ -165,6 +166,8 @@ PetscErrorCode SetUpParameters(AppCtx *user)
 
   // ERROR CHECK THAT Pdot is negative
   
+  PetscOptionsSetValue(NULL,"-snes_monitor","");
+  PetscOptionsSetValue(NULL,"-snes_converged_reason","");
   PetscFunctionReturn(0);
 }
 
