@@ -1,7 +1,7 @@
 #include "petsc.h"
 
 #define FNAME_LENGTH  120
-#define N_ODES 1
+#define N_ODES 2
 
 typedef struct {
   /* numerical model parameters */

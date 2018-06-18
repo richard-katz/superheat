@@ -38,8 +38,8 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   PetscReal const *x, *xo;
   PetscReal       dt = user->param->dt;
   PetscReal       dr, r, R, *res, delsq, Rdot, Cdot, mvcrd, meltrate;
-  PetscReal       CdotR;
-  PetscInt        i, is=0, ie=user->param->ni-1, iR;
+  PetscReal       CdotR, Cl, Cldot, Vl=0, difn;
+  PetscInt        i, is=0, ie=user->param->ni-1, iR, iCl;
   
   PetscFunctionBeginUser;
   ierr = VecGetArrayRead(X,&x); CHKERRQ(ierr);
@@ -49,14 +49,21 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
 
   /* radius ODE */
   iR = user->param->dofs - N_ODES;
-  R = x[iR];  Rdot  = (x[iR] - xo[iR])/dt;
+  R = x[iR];  Rdot  = (log(x[iR]) - log(xo[iR]))/dt;
   CdotR = 0.5*((x[ie]+x[ie-1]) - (xo[ie]+xo[ie-1]))/dt;
-  meltrate = par->Pdot/par->St; 
+  meltrate = par->Pdot/par->St; // FIX THIS
   res[iR] = Rdot - meltrate;
+
+  /* liquid concentration ODE */
+  iCl = user->param->dofs - N_ODES + 1;
+  Cl = x[iCl]; Cldot = (x[iCl] - xo[iCl])/dt;
+  meltrate = Rdot*(par->K-1)*Cl;
+  difn = (x[ie]-x[ie-1])/dr/R/R;
+  res[iCl] = Vl*Cldot/pow(R,3) + 3*(meltrate + difn);
   
   /* diffusion boundary conditions */
-  res[is] = x[is] - x[is+1];     is++;
-  res[ie] = x[ie] + x[ie-1] - 2; ie--;
+  res[is] = x[is] - x[is+1];                   is++;
+  res[ie] = x[ie] + x[ie-1] - 2*par->K*(Cl-1); ie--;
 
   /* diffusion PDE */
   for (i=is; i<=ie; i++) {
@@ -83,8 +90,8 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   AppCtx          *user = (AppCtx*)ptr;
   Parameter       *par = user->param;
   PetscReal const *x, *xo;
-  PetscInt        row, col[4], is, ie, rowR;
-  PetscReal       A[4], dr, r, dt, R, Rdot, delsq;
+  PetscInt        row, col[4], is, ie, iR, iCl;
+  PetscReal       A[4], dr, r, dt, R, Rdot, delsq, Cl, Cldot, Vl=0;
   PetscFunctionBeginUser;
   ierr = VecGetArrayRead(X,&x); CHKERRQ(ierr);
   ierr = VecGetArrayRead(user->Xo,&xo); CHKERRQ(ierr);
@@ -94,12 +101,21 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   dt = user->param->dt;
 
   /* radius ODE */
-  rowR = user->param->dofs - N_ODES;
-  R = x[rowR];  Rdot = (x[rowR] - xo[rowR])/dt; 
-  col[0] = rowR;  A[0] = 1/dt;
-  col[1] = ie-1;  A[1] = 0;
-  col[2] = ie;    A[2] = 0;
-  ierr = MatSetValues(J,1,&rowR,3,col,A,INSERT_VALUES);CHKERRQ(ierr);
+  iR = user->param->dofs - N_ODES;
+  R = x[iR];  Rdot = (log(x[iR]) - log(xo[iR]))/dt; 
+  /*R */       col[0] = iR;    A[0] = 1/dt; // FIX THIS 
+  /*Cs left*/  col[1] = ie-1;  A[1] = 0;
+  /*Cs right*/ col[2] = ie;    A[2] = 0;
+  ierr = MatSetValues(J,1,&iR,3,col,A,INSERT_VALUES);CHKERRQ(ierr);
+
+  /* liquid concentration ODE */
+  iCl = user->param->dofs - N_ODES + 1;
+  Cl = x[iCl]; Cldot = (x[iCl] - xo[iCl])/dt;
+  /*Cl */      col[0] = iCl;  A[0] = Vl/dt/pow(R,3);
+  /*R  */      col[1] = iR;   A[1] = 0;
+  /*Cs left*/  col[2] = ie-1; A[2] = 0;
+  /*Cs right*/ col[3] = ie;   A[3] = 0;
+  ierr = MatSetValues(J,1,&iR,3,col,A,INSERT_VALUES);CHKERRQ(ierr);
 
   /* diffusion boundary conditions */
   col[0]=is;   A[0] = +1;
@@ -112,7 +128,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   /* diffusion PDE */
   for (row=is; row<=ie; row++) {
     r = dr*(row-0.5);
-    col[0] = row-1; col[1] = row; col[2] = row+1; col[3] = rowR;
+    col[0] = row-1; col[1] = row; col[2] = row+1; col[3] = iR;
     /*left*/ A[0] = (1/dr - 1/r)/dr/R/R - r*Rdot/(2*dr);
     /*cntr*/ A[1] = -2/dr/dr/R/R - 1/dt;
     /*rght*/ A[2] = (1/dr + 1/r)/dr/R/R + r*Rdot/(2*dr);
@@ -200,8 +216,8 @@ PetscErrorCode SetUpInitialGuess(AppCtx *user)
   PetscReal      vals[N_ODES];
   PetscFunctionBeginUser;
   ierr = VecSet(user->X,0);CHKERRQ(ierr);
-  ii[0]   = user->param->dofs - N_ODES;
-  vals[0] = 1;
+  ii[0] = user->param->dofs - N_ODES; vals[0] = 1;
+  ii[1] = ii[0]+1;                    vals[1] = 1;
   ierr = VecSetValues(user->X,N_ODES,ii,vals,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecCopy(user->X,user->Xo);CHKERRQ(ierr);
   PetscFunctionReturn(0);
