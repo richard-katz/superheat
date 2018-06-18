@@ -9,6 +9,6 @@ function A = loadSuperheatOutput(filename)
   end
 
   A.soln.Cs = A.X(1:A.par.ni);
-  A.soln.R  = A.X(A.par.ni+1);
+  A.soln.R  = exp(A.X(A.par.ni+1));
   dr = A.soln.R/(A.par.ni-2);
   A.soln.r  = dr*([0:1:A.par.ni-1]-0.5);
