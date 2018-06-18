@@ -38,7 +38,7 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   PetscReal const *x, *xo;
   PetscReal       dt = user->param->dt;
   PetscReal       dr, r, R, *res, delsq, Rdot, Cdot, mvcrd, meltrate;
-  PetscReal       CdotR, Cl, Cldot, Vl=0, difn;
+  PetscReal       CdotR, Cl, Cldot, Vl=1, difn;
   PetscInt        i, iR, iCl, iCs=user->param->ni-1;
   
   PetscFunctionBeginUser;
@@ -59,15 +59,14 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   Cl = x[iCl]; Cldot = (x[iCl] - xo[iCl])/dt;
   meltrate = Rdot*(par->K-1)*Cl;
   difn = (x[iCs] - x[iCs-1])/dr/R/R;
-  res[iCl] = Cl - 0.1; 
-  //res[iCl] = Vl*Cldot/pow(R,3) + 3*(meltrate + difn);
+  res[iCl] = Vl*Cldot/pow(R,3)/3 + meltrate + difn;
   
   /* diffusion boundary conditions */
   res[0]   = x[0]   - x[1];
   res[iCs] = x[iCs] + x[iCs-1] - 2*par->K*(Cl-1);
 
   /* diffusion PDE */
-  for (i=1; i<=iCs-1; i++) {
+  for (i=1; i<iCs; i++) {
     r = dr*(i-0.5);
     Cdot  = (x[i] - xo[i])/dt;
     delsq = ((x[i-1] - 2*x[i] + x[i+1])/dr/dr + (x[i+1] - x[i-1])/r/dr)/R/R;
@@ -92,7 +91,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   Parameter       *par = user->param;
   PetscReal const *x, *xo;
   PetscInt        row, col[4], is, ie, iR, iCl;
-  PetscReal       A[4], dr, r, dt, R, Rdot, delsq, Cl, Cldot, Vl=0;
+  PetscReal       A[4], dr, r, dt, R, Rdot, delsq, Cl, Cldot, Vl=1;
   PetscFunctionBeginUser;
   ierr = VecGetArrayRead(X,&x); CHKERRQ(ierr);
   ierr = VecGetArrayRead(user->Xo,&xo); CHKERRQ(ierr);
@@ -112,11 +111,12 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   /* liquid concentration ODE */
   iCl = user->param->dofs - N_ODES + 1;
   Cl = x[iCl]; Cldot = (x[iCl] - xo[iCl])/dt;
-  /*Cl */      col[0] = iCl;  A[0] = 1; //Vl/dt/pow(R,3) + 3*Rdot*(par->K-1); 
-  /*R  */      col[1] = iR;   A[1] = 0; //-3*Vl*Cldot/pow(R,3)*x[iR] + 
-                                        //3*((par->K-1)*Cl/dt - 2*(x[ie]-x[ie-1])/dr/R/R*x[iR]);
-  /*Cs left*/  col[2] = ie-1; A[2] = 0; //-3/dr/R/R;
-  /*Cs right*/ col[3] = ie;   A[3] = 0; //+3/dr/R/R;
+  /*Cl */      col[0] = iCl;  A[0] = Vl/dt/pow(R,3)/3 + Rdot*(par->K-1); 
+  /*R  */      col[1] = iR;   A[1] = - Vl*Cldot/pow(R,3)*x[iR]
+				     + (par->K-1)*Cl/dt
+				     - 2*(x[ie]-x[ie-1])/dr/R/R*x[iR];
+  /*Cs left*/  col[2] = ie-1; A[2] = -1/dr/R/R;
+  /*Cs right*/ col[3] = ie;   A[3] = +1/dr/R/R;
   ierr = MatSetValues(J,1,&iCl,4,col,A,INSERT_VALUES);CHKERRQ(ierr);
 
   /* diffusion boundary conditions */
@@ -129,7 +129,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   ierr = MatSetValues(J,1,&ie,2,col,A,INSERT_VALUES);CHKERRQ(ierr);
   
   /* diffusion PDE */
-  for (row=is+1; row<=ie-1; row++) {
+  for (row=is+1; row<ie; row++) {
     r = dr*(row-0.5);
     col[0] = row-1; col[1] = row; col[2] = row+1; col[3] = iR;
     /*left*/ A[0] = (1/dr - 1/r)/dr/R/R - r*Rdot/(2*dr);
