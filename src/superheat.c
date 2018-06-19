@@ -48,7 +48,7 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   dr = 1./(user->param->ni-2);
 
   /* extract ODE variables */
-  iCs = user->param->ni - 1;            Cs = 0.5*(x[iCs] + x[iCs-1]);
+  iCs = user->param->ni   - 1;          Cs = 0.5*(x[iCs] + x[iCs-1]);
   iR  = user->param->dofs - N_ODES;     R  = exp(x[iR]);  
   iCl = user->param->dofs - N_ODES + 1; Cl = x[iCl]; 
   iV  = user->param->dofs - N_ODES + 2; Vl = x[iV]; 
@@ -69,7 +69,7 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
            + (x[iCs] - x[iCs-1])/dr/R/R;
   
   /* diffusion boundary conditions (complete) */
-  res[0]   = x[0]   - x[1];
+  res[0]   = x[0] - x[1];
   res[iCs] = Cs - par->K*(Cl-1);
 
   /* diffusion PDE (complete) */
@@ -190,7 +190,7 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   ierr = PetscBagRegisterInt(user->bag,&par->nout,10,"nout","Output step interval"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->n,0,"n","<DO NOT SET> Current time-step number"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->N,0,"N","<DO NOT SET> Current output frame number"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(user->bag,&par->t,0,"t","Time");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(user->bag,&par->t,0,"t","<DO NOT SET> Time");CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(user->bag,&par->tmax,10,"tmax","Maximum time");CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(user->bag,&par->dt,1e-4,"dt","Time-step size");CHKERRQ(ierr);
   ierr = PetscBagRegisterString(user->bag,&par->filename,FNAME_LENGTH,"test","filename","Name of output file");CHKERRQ(ierr);
