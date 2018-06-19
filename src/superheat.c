@@ -51,7 +51,7 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   iR = user->param->dofs - N_ODES;
   R = exp(x[iR]);  Rdot  = (x[iR] - xo[iR])/dt;
   CdotR = 0.5*((x[iCs] + x[iCs-1]) - (xo[iCs] + xo[iCs-1]))/dt;
-  res[iR] = Rdot - par->Pdot/par->St; // FIX THIS
+  res[iR] = Rdot + par->Pdot/par->St; // FIX THIS
 
   /* liquid volume ODE (incomplete) */
   iV = user->param->dofs - N_ODES + 2;
@@ -189,7 +189,7 @@ PetscErrorCode SetUpParameters(AppCtx *user)
 
   /* Register physical parameters */
   ierr = PetscBagRegisterReal(user->bag,&par->K,1e-2,"K","Parition coefficient");CHKERRQ(ierr);  
-  ierr = PetscBagRegisterReal(user->bag,&par->Pdot,-1e-6,"Pdot","Dimensionless decompression rate");CHKERRQ(ierr);  
+  ierr = PetscBagRegisterReal(user->bag,&par->Pdot,1e-6,"Pdot","Dimensionless decompression rate");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->St,0.1,"St","Stefan number");CHKERRQ(ierr);  
   
   /* Display parameters */
