@@ -55,8 +55,8 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
 
   /* radius ODE (incomplete) */
   Rdot  = (x[iR] - xo[iR])/dt;
-  CdotR = (Cs - 0.5*(xo[iCs] + xo[iCs-1]))/dt;
-  res[iR] = Rdot - (-par->decmpr - CdotR)/(par->St - (x[iCs] - x[iCs-1])/dr);
+  CdotR = (Cs - 0.5*(xo[iCs]+xo[iCs-1]))/dt;
+  res[iR] = Rdot - (-par->decmpr - CdotR)/(par->St/(1) - (x[iCs] - x[iCs-1])/dr);
 
   /* liquid volume ODE (incomplete) */
   Vdot = (x[iV] - xo[iV])/dt;
@@ -111,7 +111,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   iCl = user->param->dofs - N_ODES + 1; Cl = x[iCl]; 
   iV  = user->param->dofs - N_ODES + 2; Vl = x[iV]; 
 
-  /* radius ODE (complete) */
+  /* radius ODE (incomplete) */
   R = exp(x[iR]);  Rdot = (x[iR] - xo[iR])/dt; 
   /*R */       col[0] = iR;    A[0] = 1/dt;
   /*Cs left*/  col[1] = ie-1;  A[1] = +dr*(xo[iCs] + xo[iCs-1] - 2*(x[iCs]   + par->decmpr*dt) + par->St*dr)
@@ -244,7 +244,7 @@ PetscErrorCode SetUpInitialGuess(AppCtx *user)
   ierr = VecSet(user->X,1);CHKERRQ(ierr);
   /* ln R */ ii[0] = user->param->dofs - N_ODES; vals[0] = 0;
   /* Cl   */ ii[1] = ii[0]+1;                    vals[1] = 1;
-  /* Vl   */ ii[2] = ii[0]+2;                    vals[2] = 0.01;
+  /* Vl   */ ii[2] = ii[0]+2;                    vals[2] = 0.1;
   ierr = VecSetValues(user->X,N_ODES,ii,vals,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecCopy(user->X,user->Xo);CHKERRQ(ierr);
   PetscFunctionReturn(0);
