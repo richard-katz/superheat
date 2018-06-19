@@ -17,8 +17,8 @@ int main(int argc,char **argv)
 
   /* form IC, solve and output */
   ierr = SetUpInitialGuess(&user);CHKERRQ(ierr);
-  ierr = DoSolve(&user);CHKERRQ(ierr);
   ierr = WriteOutput(&user);CHKERRQ(ierr);
+  ierr = DoSolve(&user);CHKERRQ(ierr);
 
   /* clean up */
   ierr = CleanUpDataStructures(&user);CHKERRQ(ierr);
@@ -178,8 +178,12 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   /* Register numerical model parameters */
   ierr = PetscBagRegisterInt(user->bag,&par->ni,100,"ni","Number of grid points"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->dofs,par->ni+N_ODES,"dofs","<DO NOT SET> Total number of degrees of freedom"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(user->bag,&par->ns,100,"ns","Number of time steps"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(user->bag,&par->ns,200,"ns","Number of time steps"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(user->bag,&par->nout,10,"nout","Output step interval"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(user->bag,&par->n,0,"n","<DO NOT SET> Current time-step number"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(user->bag,&par->N,0,"N","<DO NOT SET> Current output frame number"); CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(user->bag,&par->t,0,"t","Time");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(user->bag,&par->tmax,10,"tmax","Maximum time");CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(user->bag,&par->dt,1e-4,"dt","Time-step size");CHKERRQ(ierr);
   ierr = PetscBagRegisterString(user->bag,&par->filename,FNAME_LENGTH,"test","filename","Name of output file");CHKERRQ(ierr);
 
@@ -207,14 +211,16 @@ PetscErrorCode WriteOutput(AppCtx *user)
 /*-----------------------------------------------------------------------*/
 {
   PetscErrorCode ierr;
+  char           filename[FNAME_LENGTH];
   PetscViewer    viewer;
   PetscFunctionBeginUser;
-  ierr = PetscPrintf(user->comm," Generating output file: \"%s\"\n",user->param->filename);
-  ierr = PetscViewerBinaryOpen(user->comm,user->param->filename,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  sprintf(filename,"%s_%4.4d",user->param->filename,user->param->N++);
+  ierr = PetscPrintf(user->comm,"Generating output file: \"%s\"\n",filename);
+  ierr = PetscViewerBinaryOpen(user->comm,filename,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = PetscViewerPushFormat(viewer,PETSC_VIEWER_BINARY_MATLAB);CHKERRQ(ierr);
   ierr = PetscBagView(user->bag,viewer);CHKERRQ(ierr); 
   ierr = VecView(user->X,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);  
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -231,7 +237,7 @@ PetscErrorCode SetUpInitialGuess(AppCtx *user)
   ierr = VecSet(user->X,0);CHKERRQ(ierr);
   /* ln R */ ii[0] = user->param->dofs - N_ODES; vals[0] = 0;
   /* Cl   */ ii[1] = ii[0]+1;                    vals[1] = 1;
-  /* Vl   */ ii[2] = ii[0]+2;                    vals[2] = 0.1;
+  /* Vl   */ ii[2] = ii[0]+2;                    vals[2] = 0.01;
   ierr = VecSetValues(user->X,N_ODES,ii,vals,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecCopy(user->X,user->Xo);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -263,7 +269,7 @@ PetscErrorCode SetUpDataStructures(AppCtx *user)
   ierr = MatCreate(user->comm,&user->J);CHKERRQ(ierr);
   ierr = MatSetSizes(user->J,PETSC_DECIDE,PETSC_DECIDE,par->dofs,par->dofs);CHKERRQ(ierr);
   ierr = MatSetType(user->J,MATSEQAIJ);CHKERRQ(ierr);
-  ierr = MatSeqAIJSetPreallocation(user->J,5,NULL); CHKERRQ(ierr); // FIX THIS
+  ierr = MatSeqAIJSetPreallocation(user->J,5,NULL); CHKERRQ(ierr);
   ierr = MatSetFromOptions(user->J);CHKERRQ(ierr);
   ierr = MatSetUp(user->J); CHKERRQ(ierr);
   
@@ -300,12 +306,16 @@ PetscErrorCode DoSolve(AppCtx *user)
 /*-----------------------------------------------------------------------*/
 {
   PetscErrorCode ierr;
-  PetscInt       n;
+  Parameter      *par = user->param;
+  PetscInt       n_next_out=0;
   PetscFunctionBeginUser;
-  for (n=0; n<user->param->ns; n++) {
+  ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
+  while (par->n < par->ns && par->t < par->tmax) {
     ierr = SNESSolve(user->snes,NULL,user->X);CHKERRQ(ierr);
     ierr = VecCopy(user->X,user->Xo); CHKERRQ(ierr);
-    user->param->t += user->param->dt;
+    par->t += par->dt; par->n++;
+    ierr = PetscPrintf(user->comm,"Step: %d/%d, Time: %.5g/%.2g\n",par->n,par->ns,par->t,par->tmax);CHKERRQ(ierr);
+    if (par->n >= n_next_out) { ierr = WriteOutput(user); CHKERRQ(ierr); n_next_out += par->nout; }
     ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
   }
   PetscFunctionReturn(0);
