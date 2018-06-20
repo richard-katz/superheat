@@ -308,6 +308,11 @@ PetscErrorCode CleanUpDataStructures(AppCtx *user)
 {
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
+
+  /* Display parameters again */
+  ierr = PetscBagView(user->bag,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
+  
   ierr = VecDestroy(&user->X);CHKERRQ(ierr);
   ierr = VecDestroy(&user->Xo);CHKERRQ(ierr);
   ierr = VecDestroy(&user->R);CHKERRQ(ierr);
