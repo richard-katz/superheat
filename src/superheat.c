@@ -57,26 +57,32 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   Rdot  = (x[iR] - xo[iR])/dt;
   CdotR = (Cs - 0.5*(xo[iCs]+xo[iCs-1]))/dt;
   res[iR] = Rdot - (-par->decmpr - CdotR)/(par->St/(1) - (x[iCs] - x[iCs-1])/dr);
-
+  res[iR] *= dr;
+  
   /* liquid volume ODE (incomplete) */
   Vdot = (x[iV] - xo[iV])/dt;
   res[iV] = Vdot + 3*pow(R,3)*Rdot;
+  res[iV] *= dr;
   
   /* liquid concentration ODE (incomplete) */
   Cldot = (x[iCl] - xo[iCl])/dt;
   res[iCl] = Vl*Cldot/pow(R,3)/3
            + Rdot*(par->K-1)*Cl
            + par->K*(x[iCs] - x[iCs-1])/dr/R/R;
-  
+  res[iCl] *= dr;
+
   /* diffusion boundary conditions (complete) */
   res[0]   = x[0] - x[1];
+  res[0] *= dr;
   res[iCs] = Cs - Cl;
+  res[iCs] *= dr;
 
   /* diffusion PDE (complete) */
   for (i=1; i<iCs; i++) {
     r = dr*(i-0.5);  Cdot = (x[i] - xo[i])/dt;
     res[i] = -Cdot + r*Rdot*(x[i+1] - x[i-1])/(2*dr) +
            + ((x[i-1] - 2*x[i] + x[i+1])/dr/dr + (x[i+1] - x[i-1])/r/dr)/R/R;
+    res[i] *= dr;
   }
   
   ierr = VecRestoreArray(Res,&res); CHKERRQ(ierr);
@@ -160,6 +166,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   
   ierr = MatAssemblyBegin(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(J,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatScale(J,dr);CHKERRQ(ierr);
   
   ierr = VecRestoreArrayRead(user->Xo,&xo); CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(X,&x); CHKERRQ(ierr);
