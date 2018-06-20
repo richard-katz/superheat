@@ -144,7 +144,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   col[0]=ie-1; A[0] = +0.5;
   col[1]=ie;   A[1] = +0.5;
   col[2]=iCl;  A[2] = -1;
-  ierr = MatSetValues(J,1,&ie,2,col,A,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatSetValues(J,1,&ie,3,col,A,INSERT_VALUES);CHKERRQ(ierr);
   
   /* diffusion PDE (complete) */
   for (row=is+1; row<ie; row++) {
