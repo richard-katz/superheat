@@ -191,20 +191,20 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   par = user->param;
 
   /* Register numerical model parameters */
-  ierr = PetscBagRegisterInt(user->bag,&par->ni,100,"ni","Number of grid points"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(user->bag,&par->ni,500,"ni","Number of grid points"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->dofs,par->ni+N_ODES,"dofs","<DO NOT SET> Total number of degrees of freedom"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(user->bag,&par->ns,200,"ns","Number of time steps"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(user->bag,&par->nout,10,"nout","Output step interval"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(user->bag,&par->ns,3000,"ns","Number of time steps"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(user->bag,&par->nout,100,"nout","Output step interval"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->n,0,"n","<DO NOT SET> Current time-step number"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->N,0,"N","<DO NOT SET> Current output frame number"); CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(user->bag,&par->t,0,"t","<DO NOT SET> Time");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(user->bag,&par->tmax,10,"tmax","Maximum time");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(user->bag,&par->dt,1e-4,"dt","Time-step size");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(user->bag,&par->tmax,3,"tmax","Maximum time");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(user->bag,&par->dt,1e-3,"dt","Time-step size");CHKERRQ(ierr);
   ierr = PetscBagRegisterString(user->bag,&par->filename,FNAME_LENGTH,"test","filename","Name of output file");CHKERRQ(ierr);
 
   /* Register physical parameters */
   ierr = PetscBagRegisterReal(user->bag,&par->K,1e-2,"K","Parition coefficient");CHKERRQ(ierr);  
-  ierr = PetscBagRegisterReal(user->bag,&par->decmpr,1e-4,"decmpr","Dimensionless decompression rate");CHKERRQ(ierr);  
+  ierr = PetscBagRegisterReal(user->bag,&par->decmpr,1,"decmpr","Dimensionless decompression rate");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->St,10,"St","Stefan number");CHKERRQ(ierr);  
   
   /* Display parameters */
@@ -251,7 +251,7 @@ PetscErrorCode SetUpInitialGuess(AppCtx *user)
   ierr = VecSet(user->X,1);CHKERRQ(ierr);
   /* ln R */ ii[0] = user->param->dofs - N_ODES; vals[0] = 0;
   /* Cl   */ ii[1] = ii[0]+1;                    vals[1] = 1;
-  /* Vl   */ ii[2] = ii[0]+2;                    vals[2] = 0.1;
+  /* Vl   */ ii[2] = ii[0]+2;                    vals[2] = 0;
   ierr = VecSetValues(user->X,N_ODES,ii,vals,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecCopy(user->X,user->Xo);CHKERRQ(ierr);
   PetscFunctionReturn(0);
