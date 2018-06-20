@@ -62,6 +62,7 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   /* liquid volume ODE (incomplete) */
   Vdot = (x[iV] - xo[iV])/dt;
   res[iV] = Vdot + 3*pow(R,3)*Rdot;
+  if (par->meltmode==1) { res[iV] = Vl; }
   res[iV] *= dr;
   
   /* liquid concentration ODE (incomplete) */
@@ -130,6 +131,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   Vl = x[iV];  Vdot = (x[iV] - xo[iV])/dt;
   /* Vl */      col[0] = iV;   A[0] = 1/dt;
   /* R  */      col[1] = iR;   A[1] = 3*pow(R,3)*(3*x[iR]*Rdot + 1/dt);
+  if (par->meltmode==1) { A[0]=1; A[1] = 0; }
   ierr = MatSetValues(J,1,&iV,2,col,A,INSERT_VALUES);CHKERRQ(ierr);
   
   /* liquid concentration ODE (complete) */
@@ -203,6 +205,7 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   ierr = PetscBagRegisterString(user->bag,&par->filename,FNAME_LENGTH,"test","filename","Name of output file");CHKERRQ(ierr);
 
   /* Register physical parameters */
+  ierr = PetscBagRegisterInt(user->bag,&par->meltmode,0,"mode","Melting mode: 0=batch, 1=fractional, 2=dynamic"); CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(user->bag,&par->K,1e-2,"K","Parition coefficient");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->decmpr,1,"decmpr","Dimensionless decompression rate");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->St,10,"St","Stefan number");CHKERRQ(ierr);  

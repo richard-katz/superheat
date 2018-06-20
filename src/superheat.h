@@ -7,6 +7,7 @@ typedef struct {
   /* numerical model parameters */
   PetscInt  ni, dofs, N; // grid points for Cs, total degrees of freedom, output file number
   PetscInt  ns, n, nout; // max number of time steps, step number, output step interval
+  PetscInt  meltmode;    // 0=batch, 1=fractional, 2=dynamic
   PetscReal t, dt, tmax; // current time, time-step, maximum time
   PetscBool make_output;
   char      filename[FNAME_LENGTH];
