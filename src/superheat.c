@@ -230,6 +230,8 @@ PetscErrorCode WriteOutput(AppCtx *user)
   char           filename[FNAME_LENGTH];
   PetscViewer    viewer;
   PetscFunctionBeginUser;
+
+  /* create frame output */
   sprintf(filename,"%s_%4.4d",user->param->filename,user->param->N++);
   ierr = PetscPrintf(user->comm,"Generating output file: \"%s\"\n",filename);
   ierr = PetscViewerBinaryOpen(user->comm,filename,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
@@ -237,7 +239,7 @@ PetscErrorCode WriteOutput(AppCtx *user)
   ierr = PetscBagView(user->bag,viewer);CHKERRQ(ierr); 
   ierr = VecView(user->X,viewer);CHKERRQ(ierr);
   ierr = VecView(user->R,viewer);CHKERRQ(ierr);
-  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);  
   PetscFunctionReturn(0);
 }
 
@@ -257,6 +259,7 @@ PetscErrorCode SetUpInitialGuess(AppCtx *user)
   /* Vl   */ ii[2] = ii[0]+2;                    vals[2] = 0;
   ierr = VecSetValues(user->X,N_ODES,ii,vals,INSERT_VALUES);CHKERRQ(ierr);
   ierr = VecCopy(user->X,user->Xo);CHKERRQ(ierr);
+  ierr = TimestepTableAddEntry(user);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -268,6 +271,7 @@ PetscErrorCode SetUpDataStructures(AppCtx *user)
 {
   PetscErrorCode ierr;
   Parameter      *par = user->param;
+  char           filename[FNAME_LENGTH];
   PetscFunctionBeginUser;
 
   /* vectors */
@@ -296,6 +300,10 @@ PetscErrorCode SetUpDataStructures(AppCtx *user)
   ierr = SNESSetJacobian(user->snes,user->J,user->J,FormJacobian,(void*)user);
   ierr = SNESSetFromOptions(user->snes);CHKERRQ(ierr);
   ierr = SNESSetUp(user->snes);
+
+  /* viewer */
+  sprintf(filename,"%s_%s",user->param->filename,"ts.csv");
+  ierr = PetscViewerASCIIOpen(user->comm,filename,&user->timestep_table);
   
   PetscFunctionReturn(0);
 }
@@ -318,6 +326,7 @@ PetscErrorCode CleanUpDataStructures(AppCtx *user)
   ierr = VecDestroy(&user->R);CHKERRQ(ierr);
   ierr = MatDestroy(&user->J);CHKERRQ(ierr);
   ierr = SNESDestroy(&user->snes);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&user->timestep_table);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -340,8 +349,32 @@ PetscErrorCode DoSolve(AppCtx *user)
     ierr = VecCopy(user->X,user->Xo); CHKERRQ(ierr);
     par->t += par->dt; par->n++;
     ierr = PetscPrintf(user->comm,"Step: %d/%d, Time: %.5g/%.2g\n",par->n,par->ns,par->t,par->tmax);CHKERRQ(ierr);
+    ierr = TimestepTableAddEntry(user);CHKERRQ(ierr);
     if (par->n >= n_next_out) { ierr = WriteOutput(user); CHKERRQ(ierr); n_next_out += par->nout; }
     ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
   }
+  PetscFunctionReturn(0);
+}
+
+/*-----------------------------------------------------------------------*/
+#undef __FUNCT__
+#define __FUNCT__ "TimestepTableAddEntry"
+PetscErrorCode TimestepTableAddEntry(AppCtx *user)
+/*-----------------------------------------------------------------------*/
+{
+  PetscErrorCode ierr;
+  Parameter      *par = user->param;
+  PetscInt       Nv = 4+N_ODES, i, ind[Nv];
+  PetscReal      val[Nv];
+  PetscFunctionBeginUser;
+  ierr = PetscViewerASCIIPrintf(user->timestep_table,"%d\t",par->n);CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(user->timestep_table,"%7.7f\t",par->t);CHKERRQ(ierr);
+  ind[0] = 0;  ind[1] = 1;
+  for (i=2; i<Nv; i++) { ind[i] = par->ni + i - 4; }
+  ierr = VecGetValues(user->X, Nv, ind, val);
+  ierr = PetscViewerASCIIPrintf(user->timestep_table,"%7.7f\t",0.5*(val[0]+val[1]));CHKERRQ(ierr);
+  ierr = PetscViewerASCIIPrintf(user->timestep_table,"%7.7f\t",0.5*(val[2]+val[3]));CHKERRQ(ierr);
+  for (i=4; i<Nv; i++) { ierr = PetscViewerASCIIPrintf(user->timestep_table,"%7.7f\t",val[i]);CHKERRQ(ierr); }
+  ierr = PetscViewerASCIIPrintf(user->timestep_table,"\n");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }

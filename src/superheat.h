@@ -25,12 +25,14 @@ typedef struct {
   Mat           J;
   SNES          snes;
   MPI_Comm      comm;
+  PetscViewer   timestep_table;
 } AppCtx;
 
 PetscErrorCode SetUpParameters(AppCtx*);
 PetscErrorCode SetUpDataStructures(AppCtx*);
 PetscErrorCode SetUpInitialGuess(AppCtx*);
 PetscErrorCode DoSolve(AppCtx*);
+PetscErrorCode TimestepTableAddEntry(AppCtx*);
 PetscErrorCode CleanUpDataStructures(AppCtx*);
 PetscErrorCode WriteOutput(AppCtx*);
 PetscErrorCode FormResidual(SNES, Vec, Vec, void*);
