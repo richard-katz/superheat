@@ -301,7 +301,7 @@ PetscErrorCode SetUpDataStructures(AppCtx *user)
   ierr = SNESSetFromOptions(user->snes);CHKERRQ(ierr);
   ierr = SNESSetUp(user->snes);
 
-  /* viewer */
+  /* timestep viewer */
   sprintf(filename,"%s_%s",user->param->filename,"ts.csv");
   ierr = PetscViewerASCIIOpen(user->comm,filename,&user->timestep_table);
   
@@ -316,11 +316,10 @@ PetscErrorCode CleanUpDataStructures(AppCtx *user)
 {
   PetscErrorCode ierr;
   PetscFunctionBeginUser;
-
-  /* Display parameters again */
+  /* display parameters again */
   ierr = PetscBagView(user->bag,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
-  
+  /* clean up */
   ierr = VecDestroy(&user->X);CHKERRQ(ierr);
   ierr = VecDestroy(&user->Xo);CHKERRQ(ierr);
   ierr = VecDestroy(&user->R);CHKERRQ(ierr);
