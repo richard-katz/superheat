@@ -53,40 +53,36 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   iCl = user->param->dofs - N_ODES + 1; Cl = x[iCl]; 
   iV  = user->param->dofs - N_ODES + 2; Vl = x[iV]; 
 
-  /* radius ODE (incomplete) */
+  /* radius ODE (complete) */
   Rdot  = (x[iR] - xo[iR])/dt;
   CdotR = (Cs - 0.5*(xo[iCs]+xo[iCs-1]))/dt;
-  res[iR] = Rdot - (-par->decmpr - CdotR)/(par->St/(1) - (x[iCs] - x[iCs-1])/dr);
-  res[iR] *= dr;
+  res[iR] = Rdot - (-par->decmpr - CdotR)
+          / (par->St/(1 + Vl/pow(R,3)) - (x[iCs] - x[iCs-1])/dr);
   
   /* liquid volume ODE (incomplete) */
   Vdot = (x[iV] - xo[iV])/dt;
   res[iV] = Vdot + 3*pow(R,3)*Rdot;
   if (par->meltmode==1) { res[iV] = Vl; }
-  res[iV] *= dr;
   
   /* liquid concentration ODE (incomplete) */
   Cldot = (x[iCl] - xo[iCl])/dt;
   res[iCl] = Vl*Cldot/pow(R,3)/3
            + Rdot*(par->K-1)*Cl
            + par->K*(x[iCs] - x[iCs-1])/dr/R/R;
-  res[iCl] *= dr;
 
   /* diffusion boundary conditions (complete) */
-  res[0]   = x[0] - x[1];
-  res[0] *= dr;
-  res[iCs] = Cs - Cl;
-  res[iCs] *= dr;
+  res[0]    = x[0] - x[1];
+  res[iCs]  = Cs - Cl;
 
   /* diffusion PDE (complete) */
   for (i=1; i<iCs; i++) {
     r = dr*(i-0.5);  Cdot = (x[i] - xo[i])/dt;
     res[i] = -Cdot + r*Rdot*(x[i+1] - x[i-1])/(2*dr) +
            + ((x[i-1] - 2*x[i] + x[i+1])/dr/dr + (x[i+1] - x[i-1])/r/dr)/R/R;
-    res[i] *= dr;
   }
   
   ierr = VecRestoreArray(Res,&res); CHKERRQ(ierr);
+  ierr = VecScale(Res,dr);CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(user->Xo,&xo); CHKERRQ(ierr);
   ierr = VecRestoreArrayRead(X,&x); CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -103,7 +99,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   Parameter       *par = user->param;
   PetscReal const *x, *xo;
   PetscInt        row, col[5], is, ie, iR, iCl, iV, iCs;
-  PetscReal       A[5], dr, r, dt, R, Rdot, delsq, Cl, Cldot, Vdot, Vl;
+  PetscReal       A[5], dr, r, dt, R, Rdot, delsq, Cl, Cldot, Vdot, Vl, CdotR, Cs;
   PetscFunctionBeginUser;
   ierr = VecGetArrayRead(X,&x); CHKERRQ(ierr);
   ierr = VecGetArrayRead(user->Xo,&xo); CHKERRQ(ierr);
@@ -113,33 +109,38 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   dt = user->param->dt;
 
   /* extract ODE variables */
-  iCs = user->param->ni - 1;
+  iCs = user->param->ni - 1;            Cs = 0.5*(x[iCs] + x[iCs-1]);
   iR  = user->param->dofs - N_ODES;     R  = exp(x[iR]);  
   iCl = user->param->dofs - N_ODES + 1; Cl = x[iCl]; 
   iV  = user->param->dofs - N_ODES + 2; Vl = x[iV]; 
 
   /* radius ODE (incomplete) */
   R = exp(x[iR]);  Rdot = (x[iR] - xo[iR])/dt; 
-  /*R */       col[0] = iR;    A[0] = 1/dt;
+  CdotR = (Cs - 0.5*(xo[iCs]+xo[iCs-1]))/dt;
+  /*R */       col[0] = iR;    A[0] = 1/dt - 3*pow(R,3)*par->St*Vl*(par->decmpr + CdotR)
+			  	    / pow(pow(R,3)*((x[iCs] - x[iCs-1])/dr - par->St)
+					  + (x[iCs] - x[iCs-1])/dr*Vl, 2);
   /*Cs left*/  col[1] = ie-1;  A[1] = +dr*(xo[iCs] + xo[iCs-1] - 2*(x[iCs]   + par->decmpr*dt) + par->St*dr)
 				    / (2*dt*pow(par->St*dr - x[iCs] + x[iCs-1],2));
   /*Cs right*/ col[2] = ie;    A[2] = -dr*(xo[iCs] + xo[iCs-1] - 2*(x[iCs-1] + par->decmpr*dt) - par->St*dr)
 				    / (2*dt*pow(par->St*dr - x[iCs] + x[iCs-1],2));
-  ierr = MatSetValues(J,1,&iR,3,col,A,INSERT_VALUES);CHKERRQ(ierr);
+  /*Vl */      col[3] = iV;    A[3] = par->St*(par->decmpr + CdotR)/pow(R,3)
+				    / pow((x[iCs] - x[iCs-1])/dr*(1 + Vl/pow(R,3)) - par->St, 2);
+  ierr = MatSetValues(J,1,&iR,4,col,A,INSERT_VALUES);CHKERRQ(ierr);
 
   /* liquid volume ODE (incomplete) */
   Vl = x[iV];  Vdot = (x[iV] - xo[iV])/dt;
   /* Vl */      col[0] = iV;   A[0] = 1/dt;
-  /* R  */      col[1] = iR;   A[1] = 3*pow(R,3)*(3*x[iR]*Rdot + 1/dt);
+  /* R  */      col[1] = iR;   A[1] = 3*pow(R,3)*(3*Rdot + 1/dt);
   if (par->meltmode==1) { A[0]=1; A[1] = 0; }
   ierr = MatSetValues(J,1,&iV,2,col,A,INSERT_VALUES);CHKERRQ(ierr);
   
   /* liquid concentration ODE (complete) */
   Cl = x[iCl]; Cldot = (x[iCl] - xo[iCl])/dt;
   /*Cl */      col[0] = iCl;  A[0] = Vl/dt/pow(R,3)/3 + Rdot*(par->K-1); 
-  /*R  */      col[1] = iR;   A[1] = - Vl*Cldot/pow(R,3)*x[iR]
+  /*R  */      col[1] = iR;   A[1] = - Vl*Cldot/pow(R,3)
 				     + (par->K-1)*Cl/dt
-				     - 2*par->K*(x[ie]-x[ie-1])/dr/R/R*x[iR];
+				     - 2*par->K*(x[ie]-x[ie-1])/dr/R/R;
   /*Vl */      col[2] = iV;   A[2] = Cldot/pow(R,3)/3;
   /*Cs left*/  col[3] = ie-1; A[3] = -par->K/dr/R/R;
   /*Cs right*/ col[4] = ie;   A[4] = +par->K/dr/R/R;
@@ -162,7 +163,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
     /*cntr*/ A[1] = -2/dr/dr/R/R - 1/dt;
     /*rght*/ A[2] = (1/dr + 1/r)/dr/R/R + r*Rdot/(2*dr);
     delsq = ((x[row-1] - 2*x[row] + x[row+1])/dr + (x[row+1] - x[row-1])/r)/dr/R/R;    
-    /*R   */ A[3] = r*(x[row+1] - x[row-1])/(2*dr)/dt - 2*delsq*x[iR];
+    /*R   */ A[3] = r*(x[row+1] - x[row-1])/(2*dr)/dt - 2*delsq;
     ierr = MatSetValues(J,1,&row,4,col,A,INSERT_VALUES);CHKERRQ(ierr);
   }
   
@@ -338,6 +339,7 @@ PetscErrorCode DoSolve(AppCtx *user)
   PetscErrorCode ierr;
   Parameter      *par = user->param;
   PetscInt       n_next_out=0;
+  PetscReal      lnR;
   SNESConvergedReason reason;
   PetscFunctionBeginUser;
   ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
@@ -345,12 +347,23 @@ PetscErrorCode DoSolve(AppCtx *user)
     ierr = SNESSolve(user->snes,NULL,user->X);CHKERRQ(ierr);
     ierr = SNESGetConvergedReason(user->snes,&reason);CHKERRQ(ierr);
     if (reason<0) { ierr = WriteOutput(user); CHKERRQ(ierr); break; }
+
+    /* process step outcome */
     ierr = VecCopy(user->X,user->Xo); CHKERRQ(ierr);
     par->t += par->dt; par->n++;
     ierr = PetscPrintf(user->comm,"Step: %d/%d, Time: %.5g/%.2g\n",par->n,par->ns,par->t,par->tmax);CHKERRQ(ierr);
     ierr = TimestepTableAddEntry(user);CHKERRQ(ierr);
     if (par->n >= n_next_out) { ierr = WriteOutput(user); CHKERRQ(ierr); n_next_out += par->nout; }
     ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
+
+    /* check for vanishing radius */
+    ierr = VecGetValues(user->X,1,&par->ni,&lnR);CHKERRQ(ierr);
+    if (lnR < log(0.05)) {
+      ierr = PetscPrintf(user->comm,"Grain radius smaller than 5 percent of initial -- stopping.\n");CHKERRQ(ierr);
+      ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
+      break;
+    }
+    
   }
   PetscFunctionReturn(0);
 }

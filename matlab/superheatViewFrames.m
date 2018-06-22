@@ -1,21 +1,13 @@
 function A = superheatViewFrames(filebase,frames)
 
-    FS = {'FontSize',20};
+  FS = {'FontSize',20};
     
   for i=1:length(frames)
       filename = [filebase,sprintf('_%4.4d',frames(i))];
       A(i) = loadSuperheatOutput(filename);
   end
   
-  filename = [filebase,'_ts.csv'];
-  B = load(filename);
-  C.n = B(:,1);
-  C.t = B(:,2);
-  C.Cs0 = B(:,3);
-  C.Cs1 = B(:,4);
-  C.lnR = B(:,5);
-  C.Cl = B(:,6);
-  C.Vl = B(:,7);
+  C = loadSuperheatTableOutput(filebase);
   
   subplot(2,1,1);
   p(1) = plot(C.t,C.Cs0-C.Cs1,'-k','linewidth',2); hold on;
