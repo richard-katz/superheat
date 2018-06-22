@@ -49,7 +49,7 @@ function A = superheatViewFrames(filebase,frames)
   subplot(2,1,1);  hold on;
   scatter(C.t(tind),C.Cs0(tind)-C.Cs1(tind),[80],colr,'linewidth',2); hold off
   leg = legend(p,'$\Delta T(t)$','$R(t)$','$C^\ell(t)$');
-  set(leg,'interpreter','latex');
+  set(leg,'interpreter','latex',FS{:});
   
   ti = ['$\dot{\mathcal{P}}=$',num2str(-A(1).par.decmpr),'$,\;K=$',...
         num2str(A(1).par.K,'%.1e'),', St$=$',num2str(A(1).par.St),', mode$=$',num2str(A(1).par.mode)];
@@ -59,6 +59,9 @@ function A = superheatViewFrames(filebase,frames)
   ylabel('Normalized concentration','interpreter','latex',FS{:})
   xlabel('Normalized radius, $r$','interpreter','latex',FS{:});
 
+  %figure;
+  %semilogy(C.t,C.Cl,'-b','linewidth',2);
+  
   %ylabel('Dimensionless superheating','interpreter','latex')
   %xlabel('Normalized radius, $r$','interpreter','latex');
   %leg = legend(p,'$C^s$','$C^\ell$');
