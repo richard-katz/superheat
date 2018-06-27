@@ -4,7 +4,8 @@ function A = superheatViewFrames(filebase,frames)
     
   for i=1:length(frames)
       filename = [filebase,sprintf('_%4.4d',frames(i))];
-      A(i) = loadSuperheatOutput(filename);
+      try A(i) = loadSuperheatOutput(filename);
+      catch break; end
   end
   
   C = loadSuperheatTableOutput(filebase);
@@ -12,13 +13,16 @@ function A = superheatViewFrames(filebase,frames)
   subplot(2,1,1);
   p(1) = plot(C.t,C.Cs0-C.Cs1,'-k','linewidth',2); hold on;
   p(2) = plot(C.t,exp(C.lnR),'-r','linewidth',2); 
-  p(3) = plot(C.t,C.Cl,'-b','linewidth',2); hold off;
-  ylabel('$\Delta T, R, C^\ell$','interpreter','latex',FS{:})
+  p(3) = plot(C.t,C.Cl,'-b','linewidth',2); 
+  p(4) = plot(C.t,C.Vl./(C.Vl + exp(C.lnR).^3),'-m','linewidth',2);
+  hold off;
+  ylabel('$\Delta T, R, C^\ell, \phi$','interpreter','latex',FS{:})
   xlabel('Dimensionless time, $t$','interpreter','latex',FS{:});
   set(gca,'ylim',[0 1]);
   
   tmin = A(1).par.t;
   tmax = A(end).par.t;
+  nmax = A(end).par.n;
   tspan = tmax-tmin;
   for i=1:length(A); 
       t(i) = A(i).par.t/tspan; 
@@ -40,11 +44,11 @@ function A = superheatViewFrames(filebase,frames)
   
   subplot(2,1,1);  hold on;
   scatter(C.t(tind),C.Cs0(tind)-C.Cs1(tind),[80],colr,'linewidth',2); hold off
-  leg = legend(p,'$\Delta T(t)$','$R(t)$','$C^\ell(t)$');
+  leg = legend(p,'$\Delta T(t)$','$R(t)$','$C^\ell(t)$','$\phi(t)$');
   set(leg,'interpreter','latex',FS{:});
   
   ti = ['$\dot{\mathcal{P}}=$',num2str(-A(1).par.decmpr),'$,\;K=$',...
-        num2str(A(1).par.K,'%.1e'),', St$=$',num2str(A(1).par.St),', mode$=$',num2str(A(1).par.mode)];
+        num2str(A(1).par.K,'%.1e'),', St$=$',num2str(A(1).par.St),', $\phi\le$',num2str(A(1).par.phi)];
   title(ti,'interpreter','latex',FS{:});
   
   subplot(2,1,2)

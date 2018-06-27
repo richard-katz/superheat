@@ -37,8 +37,8 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   Parameter       *par = user->param;
   PetscReal const *x, *xo;
   PetscReal       dt = user->param->dt;
-  PetscReal       dr, r, R, *res, Rdot, Cdot, Vdot;
-  PetscReal       CdotR, Cl, Cldot, Vl, Cs;
+  PetscReal       dr, r, R, *res, Rdot, Cdot, Vdot, Rsq, Rcu;
+  PetscReal       CdotR, Cl, Cldot, Vl, Cs, E;
   PetscInt        i, iR, iCl, iV, iCs;
   
   PetscFunctionBeginUser;
@@ -53,6 +53,9 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   iCl = user->param->dofs - N_ODES + 1; Cl = x[iCl]; 
   iV  = user->param->dofs - N_ODES + 2; Vl = x[iV]; 
 
+  /* other useful quantities */
+  Rsq = R*R; Rcu = Rsq*R;
+  
   /* radius ODE (complete) */
   Rdot  = (x[iR] - xo[iR])/dt;
   CdotR = (Cs - 0.5*(xo[iCs]+xo[iCs-1]))/dt;
@@ -60,15 +63,15 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
           / (par->St/(1 + Vl/pow(R,3)) - (x[iCs] - x[iCs-1])/dr);
   
   /* liquid volume ODE (incomplete) */
+  if (Rcu <= 1 - par->phi) { E = -(1 + par->phi)*Rcu*Rdot; } else { E = 0; }
   Vdot = (x[iV] - xo[iV])/dt;
-  res[iV] = Vdot + 3*pow(R,3)*Rdot;
-  if (par->meltmode==1) { res[iV] = Vl; }
+  res[iV] = Vdot + 3*(Rcu*Rdot + E);
   
   /* liquid concentration ODE (incomplete) */
   Cldot = (x[iCl] - xo[iCl])/dt;
-  res[iCl] = Vl*Cldot/pow(R,3)/3
+  res[iCl] = Vl*Cldot/Rcu/3
            + Rdot*(par->K-1)*Cl
-           + par->K*(x[iCs] - x[iCs-1])/dr/R/R;
+           + par->K*(x[iCs] - x[iCs-1])/dr/Rsq;
 
   /* diffusion boundary conditions (complete) */
   res[0]    = x[0] - x[1];
@@ -78,7 +81,7 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   for (i=1; i<iCs; i++) {
     r = dr*(i-0.5);  Cdot = (x[i] - xo[i])/dt;
     res[i] = -Cdot + r*Rdot*(x[i+1] - x[i-1])/(2*dr) +
-           + ((x[i-1] - 2*x[i] + x[i+1])/dr/dr + (x[i+1] - x[i-1])/r/dr)/R/R;
+           + ((x[i-1] - 2*x[i] + x[i+1])/dr/dr + (x[i+1] - x[i-1])/r/dr)/Rsq;
   }
   
   ierr = VecRestoreArray(Res,&res); CHKERRQ(ierr);
@@ -128,11 +131,10 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
 				    / pow((x[iCs] - x[iCs-1])/dr*(1 + Vl/pow(R,3)) - par->St, 2);
   ierr = MatSetValues(J,1,&iR,4,col,A,INSERT_VALUES);CHKERRQ(ierr);
 
-  /* liquid volume ODE (incomplete) */
+  /* liquid volume ODE (BROKEN) */
   Vl = x[iV];  Vdot = (x[iV] - xo[iV])/dt;
   /* Vl */      col[0] = iV;   A[0] = 1/dt;
   /* R  */      col[1] = iR;   A[1] = 3*pow(R,3)*(3*Rdot + 1/dt);
-  if (par->meltmode==1) { A[0]=1; A[1] = 0; }
   ierr = MatSetValues(J,1,&iV,2,col,A,INSERT_VALUES);CHKERRQ(ierr);
   
   /* liquid concentration ODE (complete) */
@@ -206,7 +208,7 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   ierr = PetscBagRegisterString(user->bag,&par->filename,FNAME_LENGTH,"test","filename","Name of output file");CHKERRQ(ierr);
 
   /* Register physical parameters */
-  ierr = PetscBagRegisterInt(user->bag,&par->meltmode,0,"mode","Melting mode: 0=batch, 1=fractional, 2=dynamic"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(user->bag,&par->phi,1,"phi","Dynamic liquid fraction (upper bound)");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->K,1e-2,"K","Parition coefficient");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->decmpr,1,"decmpr","Dimensionless decompression rate");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->St,10,"St","Stefan number");CHKERRQ(ierr);  
