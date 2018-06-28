@@ -63,7 +63,7 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
           / (par->St/(1 + Vl/pow(R,3)) - (x[iCs] - x[iCs-1])/dr);
   
   /* liquid volume ODE (complete) */
-  if (Rcu <= 1 - par->phi) { E = -(Rcu + Vl)*Rdot; } else { E = 0; }
+  if (Rcu > 1 - par->phi) { E = 0; } else { E = -(Rcu + Vl)*Rdot; } 
   Vdot = (x[iV] - xo[iV])/dt;
   res[iV] = Vdot + 3*(Rcu*Rdot + E);
   
