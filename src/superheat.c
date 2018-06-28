@@ -38,7 +38,7 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   PetscReal const *x, *xo;
   PetscReal       dt = user->param->dt;
   PetscReal       dr, r, R, *res, Rdot, Cdot, Vdot, Rsq, Rcu;
-  PetscReal       CdotR, Cl, Cldot, Vl, Cs, E;
+  PetscReal       CsdotR, Cl, Cldot, Vl, CsR, E, GradCsR;
   PetscInt        i, iR, iCl, iV, iCs;
   
   PetscFunctionBeginUser;
@@ -48,34 +48,35 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   dr = 1./(user->param->ni-2);
 
   /* extract ODE variables */
-  iCs = user->param->ni   - 1;          Cs = 0.5*(x[iCs] + x[iCs-1]);
-  iR  = user->param->dofs - N_ODES;     R  = exp(x[iR]);  
-  iCl = user->param->dofs - N_ODES + 1; Cl = x[iCl]; 
-  iV  = user->param->dofs - N_ODES + 2; Vl = x[iV]; 
+  iR  = user->param->dofs - N_ODES;     R   = exp(x[iR]);  
+  iCl = user->param->dofs - N_ODES + 1; Cl  = x[iCl]; 
+  iV  = user->param->dofs - N_ODES + 2; Vl  = x[iV]; 
+  iCs = user->param->ni   - 1;          CsR = 0.5*(x[iCs] + x[iCs-1]);
 
   /* other useful quantities */
+  GradCsR = (x[iCs] - x[iCs-1])/dr;
+  Rdot    = (x[iR] - xo[iR])/dt;
+  CsdotR  = (0.5*(x[iCs]+x[iCs-1]) - 0.5*(xo[iCs]+xo[iCs-1]))/dt;
+  Vdot    = (x[iV] - xo[iV])/dt;
+  Cldot   = (x[iCl] - xo[iCl])/dt;
   Rsq = R*R; Rcu = Rsq*R;
   
   /* radius ODE (complete) */
-  Rdot  = (x[iR] - xo[iR])/dt;
-  CdotR = (Cs - 0.5*(xo[iCs]+xo[iCs-1]))/dt;
-  res[iR] = Rdot - (-par->decmpr - CdotR)
-          / (par->St/(1 + Vl/pow(R,3)) - (x[iCs] - x[iCs-1])/dr);
+  res[iR] = Rdot - (-par->decmpr - CsdotR)
+          / (par->St/(1 + Vl/pow(R,3)) - GradCsR);
   
   /* liquid volume ODE (complete) */
   if (Rcu > 1 - par->phi) { E = 0; } else { E = -(Rcu + Vl)*Rdot; } 
-  Vdot = (x[iV] - xo[iV])/dt;
   res[iV] = Vdot + 3*(Rcu*Rdot + E);
   
-  /* liquid concentration ODE (incomplete) */
-  Cldot = (x[iCl] - xo[iCl])/dt;
+  /* liquid concentration ODE (complete) */
   res[iCl] = Vl*Cldot/Rcu/3
            + Rdot*(par->K-1)*Cl
-           + par->K*(x[iCs] - x[iCs-1])/dr/Rsq;
+           + par->K*GradCsR/Rsq;
 
   /* diffusion boundary conditions (complete) */
   res[0]    = x[0] - x[1];
-  res[iCs]  = Cs - Cl;
+  res[iCs]  = CsR - Cl;
 
   /* diffusion PDE (complete) */
   for (i=1; i<iCs; i++) {
@@ -117,7 +118,7 @@ PetscErrorCode FormJacobian(SNES snes, Vec X, Mat J, Mat B, void *ptr)
   iCl = user->param->dofs - N_ODES + 1; Cl = x[iCl]; 
   iV  = user->param->dofs - N_ODES + 2; Vl = x[iV]; 
 
-  /* radius ODE (incomplete) */
+  /* radius ODE (complete) */
   R = exp(x[iR]);  Rdot = (x[iR] - xo[iR])/dt; 
   CdotR = (Cs - 0.5*(xo[iCs]+xo[iCs-1]))/dt;
   /*R */       col[0] = iR;    A[0] = 1/dt - 3*pow(R,3)*par->St*Vl*(par->decmpr + CdotR)
