@@ -15,8 +15,9 @@ function A = superheatViewFrames(filebase,frames)
   p(2) = plot(C.t,exp(C.lnR),'-r','linewidth',2); 
   p(3) = plot(C.t,C.Cl,'-b','linewidth',2); 
   p(4) = plot(C.t,C.Vl./(C.Vl + exp(C.lnR).^3),'-m','linewidth',2);
+  p(5) = plot(C.t,1-exp(C.lnR).^3,'-g','linewidth',2);
   hold off;
-  ylabel('$\Delta T, R, C^\ell, \phi$','interpreter','latex',FS{:})
+  ylabel('$\Delta T, R, C^\ell, \phi, F$','interpreter','latex',FS{:})
   xlabel('Dimensionless time, $t$','interpreter','latex',FS{:});
   set(gca,'ylim',[0 1]);
   
@@ -44,7 +45,7 @@ function A = superheatViewFrames(filebase,frames)
   
   subplot(2,1,1);  hold on;
   scatter(C.t(tind),C.Cs0(tind)-C.Cs1(tind),[80],colr,'linewidth',2); hold off
-  leg = legend(p,'$\Delta T(t)$','$R(t)$','$C^\ell(t)$','$\phi(t)$');
+  leg = legend(p,'$\Delta T(t)$','$R(t)$','$C^\ell(t)$','$\phi(t)$','$F$');
   set(leg,'interpreter','latex',FS{:});
   
   ti = ['$\dot{\mathcal{P}}=$',num2str(-A(1).par.decmpr),'$,\;K=$',...
