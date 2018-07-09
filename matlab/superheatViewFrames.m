@@ -5,7 +5,8 @@ function A = superheatViewFrames(filebase,frames)
   for i=1:length(frames)
       filename = [filebase,sprintf('_%4.4d',frames(i))];
       try A(i) = loadSuperheatOutput(filename);
-      catch break; end
+      catch display(['failed to load file ',filename]);  break; 
+      end
   end
   
   C = loadSuperheatTableOutput(filebase);
