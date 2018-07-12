@@ -16,6 +16,7 @@ typedef struct {
   PetscReal decmpr; // Dimensionless decompression rate
   PetscReal St;     // Stefan number
   PetscReal phi;    // Dynamic liquid fraction (upper bound)
+  PetscBool infinite_diffusion; // For case of homogeneous grain
 } Parameter;
 
 typedef struct {

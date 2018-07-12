@@ -60,6 +60,11 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   Vdot    = (x[iV] - xo[iV])/dt;
   Cldot   = (x[iCl] - xo[iCl])/dt;
   Rsq = R*R; Rcu = Rsq*R;
+
+  if (par->infinite_diffusion) {
+    GradCsR = 0;
+    CsdotR  = Cldot;
+  } 
   
   /* radius ODE (complete) */
   res[iR] = Rdot - (-par->decmpr - CsdotR)
@@ -213,6 +218,7 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   ierr = PetscBagRegisterReal(user->bag,&par->K,1e-2,"K","Parition coefficient");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->decmpr,1,"decmpr","Dimensionless decompression rate");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->St,10,"St","Stefan number");CHKERRQ(ierr);  
+  ierr = PetscBagRegisterBool(user->bag,&par->infinite_diffusion,PETSC_FALSE,"infD","Infinite diffusion mode");CHKERRQ(ierr);  
   
   /* Display parameters */
   ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
