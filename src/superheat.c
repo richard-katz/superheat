@@ -60,11 +60,6 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   Vdot    = (x[iV] - xo[iV])/dt;
   Cldot   = (x[iCl] - xo[iCl])/dt;
   Rsq = R*R; Rcu = Rsq*R;
-
-  if (par->infinite_diffusion) {
-    GradCsR = 0;
-    CsdotR  = Cldot;
-  } 
   
   /* radius ODE (complete) */
   res[iR] = Rdot - (-par->decmpr - CsdotR)
@@ -218,7 +213,6 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   ierr = PetscBagRegisterReal(user->bag,&par->K,1e-2,"K","Parition coefficient");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->decmpr,1,"decmpr","Dimensionless decompression rate");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->St,3,"St","Stefan number");CHKERRQ(ierr);  
-  ierr = PetscBagRegisterBool(user->bag,&par->infinite_diffusion,PETSC_FALSE,"infD","Infinite diffusion mode");CHKERRQ(ierr);  
   
   /* Display parameters */
   ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
@@ -348,7 +342,7 @@ PetscErrorCode DoSolve(AppCtx *user)
   PetscErrorCode ierr;
   Parameter      *par = user->param;
   PetscInt       n_next_out=0;
-  PetscReal      lnR;
+  PetscReal      lnR, F;
   SNESConvergedReason reason;
   PetscFunctionBeginUser;
   ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
@@ -358,17 +352,18 @@ PetscErrorCode DoSolve(AppCtx *user)
     if (reason<0) { ierr = WriteOutput(user); CHKERRQ(ierr); break; }
 
     /* process step outcome */
-    ierr = VecCopy(user->X,user->Xo); CHKERRQ(ierr);
     par->t += par->dt; par->n++;
-    ierr = PetscPrintf(user->comm,"Step: %d/%d, Time: %.5g/%.2g\n",par->n,par->ns,par->t,par->tmax);CHKERRQ(ierr);
+    ierr = VecCopy(user->X,user->Xo); CHKERRQ(ierr);
     ierr = TimestepTableAddEntry(user);CHKERRQ(ierr);
+    ierr = VecGetValues(user->X,1,&par->ni,&lnR);CHKERRQ(ierr);
+    F = 1 - pow(exp(lnR),3);
+    ierr = PetscPrintf(user->comm,"Step: %d/%d, Time: %.5g/%.2g, F: %.4g/1\n",par->n,par->ns,par->t,par->tmax,F);CHKERRQ(ierr);
     if (par->n >= n_next_out) { ierr = WriteOutput(user); CHKERRQ(ierr); n_next_out += par->nout; }
     ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
 
     /* check for vanishing radius */
-    ierr = VecGetValues(user->X,1,&par->ni,&lnR);CHKERRQ(ierr);
-    if (lnR < log(0.05)) {
-      ierr = PetscPrintf(user->comm,"Grain radius smaller than 5 percent of initial -- stopping.\n");CHKERRQ(ierr);
+    if (F > 0.9) {
+      ierr = PetscPrintf(user->comm,"Degree of melting exceeded 0.9 -- stopping.\n");CHKERRQ(ierr);
       ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
       break;
     }
