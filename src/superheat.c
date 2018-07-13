@@ -68,7 +68,7 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   
   /* radius ODE (complete) */
   res[iR] = Rdot - (-par->decmpr - CsdotR)
-          / (par->St/(1 + Vl/pow(R,3)) - GradCsR);
+          / (3*par->St/(1 + Vl/pow(R,3)) - GradCsR);
   
   /* liquid volume ODE (complete) */
   if (Rcu > 1 - par->phi) { E = 0; } else { E = -(Rcu + Vl)*Rdot; } 
@@ -217,7 +217,7 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   ierr = PetscBagRegisterReal(user->bag,&par->phi,1,"phi","Dynamic liquid fraction (upper bound)");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->K,1e-2,"K","Parition coefficient");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->decmpr,1,"decmpr","Dimensionless decompression rate");CHKERRQ(ierr);  
-  ierr = PetscBagRegisterReal(user->bag,&par->St,10,"St","Stefan number");CHKERRQ(ierr);  
+  ierr = PetscBagRegisterReal(user->bag,&par->St,3,"St","Stefan number");CHKERRQ(ierr);  
   ierr = PetscBagRegisterBool(user->bag,&par->infinite_diffusion,PETSC_FALSE,"infD","Infinite diffusion mode");CHKERRQ(ierr);  
   
   /* Display parameters */

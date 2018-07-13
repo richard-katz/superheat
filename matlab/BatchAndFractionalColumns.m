@@ -3,7 +3,7 @@ function A = BatchAndFractionalColumns(par)
     if nargin==0
         par.D = 0.01;           % distribution coefficient
         par.c = 1200;           % heat capacity J/kg/K
-        par.alpha = 3e-5;       % expansivity /K
+        par.alpha = 0;          % expansivity /K
         par.rho = 3000;         % density
         par.g = 10;             % gravity
         par.L = 5e5;            % latent heat J/kg
@@ -33,7 +33,7 @@ function A = BatchAndFractionalColumns(par)
     A.phi = par.epsilon/2*(sqrt(1 + 4*A.F/par.epsilon/par.phi0) - 1);
     
     % fractional
-    A1 = A1/par.c0;
+    A1 = A1/par.c0
     A.csf = A1*lambertw(0,(par.c0*exp((par.c0 + A2*A.z)/A1))/A1);
     A.Ff = par.c/par.L*(par.rho*par.g*A.z/par.C + ...
                         par.M*(par.c0-A.csf) - par.alpha*par.g*par.Ts0*A.z/par.c);

@@ -1,4 +1,4 @@
-function A = superheatViewFrames(filebase,frames)
+function [A B C] = superheatViewFrames(filebase,frames)
 
   FS = {'FontSize',20};
     
@@ -10,6 +10,11 @@ function A = superheatViewFrames(filebase,frames)
   end
   
   C = loadSuperheatTableOutput(filebase);
+  B = comparisonSolutions(A(1),C);
+  
+  subplot(2,1,1); plot(C.t,B.Csf,C.t,B.Csb);
+  subplot(2,1,2); plot(C.t,B.Ff,C.t,B.Fb); return
+
   
   subplot(2,1,1);
   p(1) = plot(C.t,C.Cs0-C.Cs1,'-k','linewidth',2); hold on;
@@ -57,6 +62,15 @@ function A = superheatViewFrames(filebase,frames)
   ylabel('Normalized concentration','interpreter','latex',FS{:})
   xlabel('Normalized radius, $r$','interpreter','latex',FS{:});
 
+  function B = comparisonSolutions(A,C)
+      Stk = A.par.St/(1/A.par.K-1);
+      B.Csf = Stk*lambertw(0,exp((1 - A.par.decmpr*C.t)/Stk)/Stk);
+      B.Csb = 0.5*(1 - Stk - A.par.decmpr*C.t + sqrt(4*Stk + (1 - Stk - A.par.decmpr*C.t).^2))
+      B.Ff  = (-1 + B.Csf + A.par.decmpr*C.t)/A.par.St;
+      B.Fb  = (-1 + B.Csb + A.par.decmpr*C.t)/A.par.St;
+  end
+  
+end
   %figure;
   %semilogy(C.t,C.Cl,'-b','linewidth',2);
   
