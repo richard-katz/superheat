@@ -12,10 +12,10 @@ typedef struct {
   char      filename[FNAME_LENGTH];
 
   /* physical parameters */
-  PetscReal K;      // Partition coefficient
-  PetscReal decmpr; // Dimensionless decompression rate
-  PetscReal St;     // Stefan number
-  PetscReal phi;    // Dynamic liquid fraction (upper bound)
+  PetscReal K;       // Partition coefficient
+  PetscReal decmpr;  // Dimensionless decompression rate
+  PetscReal St;      // Stefan number
+  PetscReal epsphi0; // Velocity ratio times reference porosity
 } Parameter;
 
 typedef struct {

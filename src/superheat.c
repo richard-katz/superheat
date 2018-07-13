@@ -38,7 +38,7 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
   PetscReal const *x, *xo;
   PetscReal       dt = user->param->dt;
   PetscReal       dr, r, R, *res, Rdot, Cdot, Vdot, Rsq, Rcu;
-  PetscReal       CsdotR, Cl, Cldot, Vl, CsR, E, GradCsR;
+  PetscReal       CsdotR, Cl, Cldot, Vl, CsR, GradCsR, phi;
   PetscInt        i, iR, iCl, iV, iCs;
   
   PetscFunctionBeginUser;
@@ -66,8 +66,8 @@ PetscErrorCode FormResidual(SNES snes, Vec X, Vec Res, void *ptr)
           / (3*par->St/(1 + Vl/pow(R,3)) - GradCsR);
   
   /* liquid volume ODE (complete) */
-  if (Rcu > 1 - par->phi) { E = 0; } else { E = -(Rcu + Vl)*Rdot; } 
-  res[iV] = Vdot + 3*(Rcu*Rdot + E);
+  phi = 0.5*par->epsphi0*(sqrt(1 + 4*(1-Rcu)/par->epsphi0) - 1);
+  res[iV] = Vl - Rcu*phi/(1-phi);
   
   /* liquid concentration ODE (complete) */
   res[iCl] = Vl*Cldot/Rcu/3
@@ -209,10 +209,10 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   ierr = PetscBagRegisterString(user->bag,&par->filename,FNAME_LENGTH,"test","filename","Name of output file");CHKERRQ(ierr);
 
   /* Register physical parameters */
-  ierr = PetscBagRegisterReal(user->bag,&par->phi,1,"phi","Dynamic liquid fraction (upper bound)");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->K,1e-2,"K","Parition coefficient");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->decmpr,1,"decmpr","Dimensionless decompression rate");CHKERRQ(ierr);  
   ierr = PetscBagRegisterReal(user->bag,&par->St,3,"St","Stefan number");CHKERRQ(ierr);  
+  ierr = PetscBagRegisterReal(user->bag,&par->epsphi0,1e-3,"epsphi0","Velocity ratio W0/w0 times reference porosity");CHKERRQ(ierr);  
   
   /* Display parameters */
   ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
