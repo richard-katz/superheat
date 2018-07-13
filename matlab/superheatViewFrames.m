@@ -52,7 +52,7 @@ function [A B C] = superheatViewFrames(filebase,frames)
   set(leg,'interpreter','latex',FS{:});
   
   ti = ['$\dot{\mathcal{P}}=$',num2str(-A(1).par.decmpr),'$,\;K=$',...
-        num2str(A(1).par.K,'%.1e'),', St$=$',num2str(A(1).par.St),', $\phi\le$',num2str(A(1).par.phi)];
+        num2str(A(1).par.K,'%.1e'),', St$=$',num2str(A(1).par.St),', $\epsilon\phi_0=$',num2str(A(1).par.epsphi0)];
   title(ti,'interpreter','latex',FS{:});
 
   subplot(3,1,2); hold on;
