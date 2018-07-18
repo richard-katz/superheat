@@ -199,12 +199,13 @@ PetscErrorCode SetUpParameters(AppCtx *user)
   /* Register numerical model parameters */
   ierr = PetscBagRegisterInt(user->bag,&par->ni,500,"ni","Number of grid points"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->dofs,par->ni+N_ODES,"dofs","<DO NOT SET> Total number of degrees of freedom"); CHKERRQ(ierr);
-  ierr = PetscBagRegisterInt(user->bag,&par->ns,3000,"ns","Number of time steps"); CHKERRQ(ierr);
+  ierr = PetscBagRegisterInt(user->bag,&par->ns,1e5,"ns","Number of time steps"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->nout,100,"nout","Output step interval"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->n,0,"n","<DO NOT SET> Current time-step number"); CHKERRQ(ierr);
   ierr = PetscBagRegisterInt(user->bag,&par->N,0,"N","<DO NOT SET> Current output frame number"); CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(user->bag,&par->t,0,"t","<DO NOT SET> Time");CHKERRQ(ierr);
-  ierr = PetscBagRegisterReal(user->bag,&par->tmax,3,"tmax","Maximum time");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(user->bag,&par->tmax,1e9,"tmax","Maximum time");CHKERRQ(ierr);
+  ierr = PetscBagRegisterReal(user->bag,&par->Fmax,0.25,"Fmax","Maximum degree of melting");CHKERRQ(ierr);
   ierr = PetscBagRegisterReal(user->bag,&par->dt,1e-3,"dt","Time-step size");CHKERRQ(ierr);
   ierr = PetscBagRegisterString(user->bag,&par->filename,FNAME_LENGTH,"test","filename","Name of output file");CHKERRQ(ierr);
 
@@ -341,32 +342,29 @@ PetscErrorCode DoSolve(AppCtx *user)
 {
   PetscErrorCode ierr;
   Parameter      *par = user->param;
-  PetscInt       n_next_out=0;
+  PetscInt       n_next_out = par->nout;
   PetscReal      lnR, F;
   SNESConvergedReason reason;
   PetscFunctionBeginUser;
   ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
-  while (par->n < par->ns && par->t < par->tmax) {
+  while (par->n < par->ns && par->t < par->tmax && F < par->Fmax) {
+
+    /* solve timestep */
     ierr = SNESSolve(user->snes,NULL,user->X);CHKERRQ(ierr);
+
+    /* check solve outcome */
     ierr = SNESGetConvergedReason(user->snes,&reason);CHKERRQ(ierr);
     if (reason<0) { ierr = WriteOutput(user); CHKERRQ(ierr); break; }
 
-    /* process step outcome */
+    /* process timestep */
     par->t += par->dt; par->n++;
     ierr = VecCopy(user->X,user->Xo); CHKERRQ(ierr);
     ierr = TimestepTableAddEntry(user);CHKERRQ(ierr);
     ierr = VecGetValues(user->X,1,&par->ni,&lnR);CHKERRQ(ierr);
     F = 1 - pow(exp(lnR),3);
-    ierr = PetscPrintf(user->comm,"Step: %d/%d, Time: %.5g/%.2g, F: %.4g/1\n",par->n,par->ns,par->t,par->tmax,F);CHKERRQ(ierr);
+    ierr = PetscPrintf(user->comm,"Step: %d/%d, Time: %.5g/%.2g, F: %.4g/%.4g\n",par->n,par->ns,par->t,par->tmax,F,par->Fmax);CHKERRQ(ierr);
     if (par->n >= n_next_out) { ierr = WriteOutput(user); CHKERRQ(ierr); n_next_out += par->nout; }
     ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
-
-    /* check for vanishing radius */
-    if (F > 0.9) {
-      ierr = PetscPrintf(user->comm,"Degree of melting exceeded 0.9 -- stopping.\n");CHKERRQ(ierr);
-      ierr = PetscPrintf(user->comm,"-----------------------------------------\n");CHKERRQ(ierr);
-      break;
-    }
     
   }
   PetscFunctionReturn(0);

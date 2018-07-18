@@ -18,9 +18,9 @@ function [A B C] = superheatViewFrames(filebase,frames)
   
   subplot(3,1,1);
   p(1) = plot(C.t,C.Cs0-C.Cs1,'-k','linewidth',2); hold on;
-  p(2) = plot(C.t,exp(C.lnR),'-r','linewidth',2); 
+  p(2) = plot(C.t,C.R,'-r','linewidth',2); 
   p(3) = plot(C.t,C.Cl,'-b','linewidth',2); 
-  p(4) = plot(C.t,C.Vl./(C.Vl + exp(C.lnR).^3),'-m','linewidth',2);
+  p(4) = plot(C.t,C.Vl./(C.Vl + C.R.^3),'-m','linewidth',2);
   hold off;
   ylabel('$\Delta T, R, C^\ell, \phi$','interpreter','latex',FS{:})
   xlabel('Dimensionless time, $t$','interpreter','latex',FS{:});
@@ -56,10 +56,10 @@ function [A B C] = superheatViewFrames(filebase,frames)
   title(ti,'interpreter','latex',FS{:});
 
   subplot(3,1,2); hold on;
-  p(1) = plot(C.t,1-exp(C.lnR).^3,'-b','linewidth',2);
+  p(1) = plot(C.t,1-C.R.^3,'-b','linewidth',2);
   p(3) = plot(C.t,B.Fb,'-k','linewidth',2);
   p(2) = plot(C.t,B.Ff,'--r','linewidth',2);
-  p(4) = plot(C.t,C.Vl./(C.Vl + exp(C.lnR).^3),'-m','linewidth',2);
+  p(4) = plot(C.t,C.Vl./(C.Vl + C.R.^3),'-m','linewidth',2);
   leg = legend(p(1:4),'grain $F(t)$','fractional $F(t)$','batch $F(t)$','$\phi(t)$');
   set(leg,'interpreter','latex',FS{:},'location','northwest');
   

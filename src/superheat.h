@@ -8,6 +8,7 @@ typedef struct {
   PetscInt  ni, dofs, N; // grid points for Cs, total degrees of freedom, output file number
   PetscInt  ns, n, nout; // max number of time steps, step number, output step interval
   PetscReal t, dt, tmax; // current time, time-step, maximum time
+  PetscReal Fmax;        // maximum degree of melting
   PetscBool make_output;
   char      filename[FNAME_LENGTH];
 

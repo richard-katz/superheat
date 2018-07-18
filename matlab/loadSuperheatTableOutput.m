@@ -10,10 +10,12 @@ function C = loadSuperheatTableOutput(filebase)
       error(errstr); 
   end
 
-  C.n = B(:,1);
-  C.t = B(:,2);
+  C.n   = B(:,1);
+  C.t   = B(:,2);
   C.Cs0 = B(:,3);
   C.Cs1 = B(:,4);
-  C.lnR = B(:,5);
-  C.Cl = B(:,6);
-  C.Vl = B(:,7);
+  C.R   = exp(B(:,5));
+  C.Cl  = B(:,6);
+  C.Vl  = B(:,7);
+  C.phi = C.Vl./(C.Vl + C.R.^3);
+  C.F   = 1 - C.R.^3;
