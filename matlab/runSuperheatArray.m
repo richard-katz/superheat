@@ -33,18 +33,22 @@ function A = runSuperheatArray(fname)
           unix(rcall);
       end
       A{i} = loadSuperheatTableOutput(fnme);
-      loglog(A{i}.F,A{i}.Cs0-A{i}.Cs1,'-','linewidth',2); hold on;
+      subplot(2,1,1); loglog(A{i}.F,A{i}.Cs0-A{i}.Cs1,'-','linewidth',2); hold on;
+      subplot(2,1,2); q(i) = semilogx(A{i}.t,A{i}.F,'-','linewidth',2); hold on;
+      subplot(2,1,2); semilogx(A{i}.t,A{i}.Ff,'-','linewidth',1); hold on;
+      subplot(2,1,2); semilogx(A{i}.t,A{i}.Fb,'-','linewidth',1); hold on;
       legent{i} = ['$\log\dot{\mathcal{P}}=',num2str(log10(dcr(i))),'$'];
   end
-  leg = legend(legent{:},'location','northwest');
+  leg = legend(q, legent{:},'location','northwest');
   set(leg,'interpreter','latex');
-  set(gca,'xlim',[1e-6 1],'ylim',[1e-3 1]);
-  xlabel('$F$','interpreter','latex')
+  subplot(2,1,1); xlabel('$F$','interpreter','latex')
   ylabel('dimensionless superheating','interpreter','latex')
+  set(gca,'xlim',[1e-6 1],'ylim',[1e-3 1]);
+  subplot(2,1,2); xlabel('$t$','interpreter','latex')
   hold off;
     
   % decompression rate series
-  figure(2);
+  figure(2); clear legent;
   K = logspace(-5,-1,5);  
   for i=1:length(K)
       fnme = [par.namebase,'_K_',num2str(i,'%3.3d')]
@@ -53,18 +57,22 @@ function A = runSuperheatArray(fname)
           unix(rcall);
       end
       B{i} = loadSuperheatTableOutput(fnme);
-      loglog(B{i}.F,B{i}.Cs0-B{i}.Cs1,'-','linewidth',2); hold on;
+      subplot(2,1,1); p(i) = loglog(B{i}.F,B{i}.Cs0-B{i}.Cs1,'-','linewidth',2); hold on;
+      subplot(2,1,2); q(i) = semilogx(B{i}.t,B{i}.F,'-','linewidth',2); hold on;
+      subplot(2,1,2); semilogx(B{i}.t,B{i}.Ff,'-','linewidth',1); hold on;
+      subplot(2,1,2); semilogx(B{i}.t,B{i}.Fb,'-','linewidth',1); hold on;
       legent{i} = ['$\log K=',num2str(log10(K(i))),'$'];
   end
-  leg = legend(legent{:},'location','northwest');
+  leg = legend(q, legent{:},'location','northwest');
   set(leg,'interpreter','latex');
-  set(gca,'xlim',[1e-6 1],'ylim',[1e-3 1]);
-  xlabel('$F$','interpreter','latex')
+  subplot(2,1,1); xlabel('$F$','interpreter','latex')
   ylabel('dimensionless superheating','interpreter','latex')
+  set(gca,'xlim',[1e-6 1],'ylim',[1e-3 1]);
+  subplot(2,1,2); xlabel('$t$','interpreter','latex')
   hold off;
   
   % Stefan series
-  figure(2);
+  figure(3); clear legent q;
   St = 3*logspace(-1,1,3);  
   for i=1:length(St)
       fnme = [par.namebase,'_St_',num2str(i,'%3.3d')]
@@ -73,12 +81,16 @@ function A = runSuperheatArray(fname)
           unix(rcall);
       end
       C{i} = loadSuperheatTableOutput(fnme);
-      loglog(C{i}.F,C{i}.Cs0-C{i}.Cs1,'-','linewidth',2); hold on;
+      subplot(2,1,1); loglog(C{i}.F,C{i}.Cs0-C{i}.Cs1,'-','linewidth',2); hold on;
+      subplot(2,1,2); q(i) = semilogx(C{i}.t,C{i}.F,'-','linewidth',2); hold on;
+      subplot(2,1,2); semilogx(C{i}.t,C{i}.Ff,'-','linewidth',1); hold on;
+      subplot(2,1,2); semilogx(C{i}.t,C{i}.Fb,'-','linewidth',1); hold on;
       legent{i} = ['St$=',num2str(St(i)),'$'];
   end
-  leg = legend(legent{:},'location','northwest');
+  leg = legend(q, legent{:},'location','northwest');
   set(leg,'interpreter','latex');
-  set(gca,'xlim',[1e-6 1],'ylim',[1e-3 1]);
-  xlabel('$F$','interpreter','latex')
+  subplot(2,1,1); xlabel('$F$','interpreter','latex')
   ylabel('dimensionless superheating','interpreter','latex')
+  set(gca,'xlim',[1e-6 1],'ylim',[1e-3 1]);
+  subplot(2,1,2); xlabel('$t$','interpreter','latex')
   hold off;

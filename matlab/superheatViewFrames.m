@@ -10,10 +10,9 @@ function [A B C] = superheatViewFrames(filebase,frames)
   end
   
   C = loadSuperheatTableOutput(filebase);
-  B = comparisonSolutions(A(1),C);
   
-  %subplot(2,1,1); plot(C.t,B.Csf,C.t,B.Csb);
-  %subplot(2,1,2); plot(C.t,B.Ff,C.t,B.Fb); return
+  %subplot(2,1,1); plot(C.t,C.Csf,C.t,C.Csb);
+  %subplot(2,1,2); plot(C.t,C.Ff,C.t,C.Fb); return
 
   
   subplot(3,1,1);
@@ -57,23 +56,14 @@ function [A B C] = superheatViewFrames(filebase,frames)
 
   subplot(3,1,2); hold on;
   p(1) = plot(C.t,1-C.R.^3,'-b','linewidth',2);
-  p(3) = plot(C.t,B.Fb,'-k','linewidth',2);
-  p(2) = plot(C.t,B.Ff,'--r','linewidth',2);
+  p(3) = plot(C.t,C.Fb,'-k','linewidth',2);
+  p(2) = plot(C.t,C.Ff,'--r','linewidth',2);
   p(4) = plot(C.t,C.Vl./(C.Vl + C.R.^3),'-m','linewidth',2);
   leg = legend(p(1:4),'grain $F(t)$','fractional $F(t)$','batch $F(t)$','$\phi(t)$');
   set(leg,'interpreter','latex',FS{:},'location','northwest');
   
-  
   subplot(3,1,3)
   ylabel('Normalized concentration','interpreter','latex',FS{:})
   xlabel('Normalized radius, $r$','interpreter','latex',FS{:});
-
-  function B = comparisonSolutions(A,C)
-      Stk = A.par.St/(1/A.par.K-1);
-      B.Csf = Stk*lambertw(0,exp((1 - A.par.decmpr*C.t)/Stk)/Stk);
-      B.Csb = 0.5*(1 - Stk - A.par.decmpr*C.t + sqrt(4*Stk + (1 - Stk - A.par.decmpr*C.t).^2))
-      B.Ff  = min((-1 + B.Csf + A.par.decmpr*C.t)/A.par.St,1);
-      B.Fb  = min((-1 + B.Csb + A.par.decmpr*C.t)/A.par.St,1);
-  end
   
 end
