@@ -1,4 +1,4 @@
-function f = printableFigure(width, height, units)
+function f = printableFigure(fw, fh, units)
 
   if nargin==2; units = 'inches'; end
     f = figure;

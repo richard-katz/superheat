@@ -22,7 +22,7 @@ function [A B C] = runSuperheatArray(fname)
   call = [prog,opts];
   
   % decompression rate series
-  figure(1);
+  %figure(1);
   dcr = logspace(-2,2,5);
   dt  = par.dt./dcr;
   Fm  = min(par.Fmax*(log10(dcr)+3),0.95);
@@ -49,7 +49,7 @@ function [A B C] = runSuperheatArray(fname)
 % $$$   hold off;
     
   % decompression rate series
-  figure(2); clear legent;
+  %figure(2); clear legent;
   K = logspace(-5,-1,5);  
   for i=1:length(K)
       fnme = [par.namebase,'_K_',num2str(i,'%3.3d')]
@@ -74,7 +74,7 @@ function [A B C] = runSuperheatArray(fname)
 % $$$   hold off;
   
   % Stefan series
-  figure(3); clear legent q;
+  %figure(3); clear legent q;
   St = 3*logspace(-1,1,3);  
   for i=1:length(St)
       fnme = [par.namebase,'_St_',num2str(i,'%3.3d')]
@@ -99,18 +99,19 @@ function [A B C] = runSuperheatArray(fname)
 % $$$   hold off;
   
   % axis dimensions, inches
-  axh = 5;    % axis height
-  axw = 3;    % axis width
-  axb = 0.7;  % axis bottom spacing
+  axh = 3;    % axis height
+  axw = 5;    % axis width
+  axb = 0.6;  % axis bottom spacing
   axt = 0.1;  % axis top spacing
   axl = 0.8;  % axis left spacing
-  axr = 0.1;  % axis right spacing
+  axr = 0.2;  % axis right spacing
   fw = axl + axw + axr;
   fh = axb + axh + axt;
   f = printableFigure(fw,fh);
   
-  ax = axes('position',[axl axb axw axh]);
+  ax = axes('units','inches','position',[axl axb axw axh]);
   
+  fnme = [par.namebase,'_decmpr_'];
   map = colormap;
   [r c] = size(map);
   row = round(linspace(1,r,length(A)));
@@ -118,9 +119,48 @@ function [A B C] = runSuperheatArray(fname)
   
   % plot of superheating versus time
   for i=1:length(A)
-     p(i) = plot(A{i}.t,A{i}.Cs0-A{i}.Cs1,'-','linewidth',2,'color',colr(i,:)); hold on; 
+     p(i) = plot(A{i}.t*dcr(i),A{i}.Cs0-A{i}.Cs1,'-','linewidth',2,'color',colr(i,:)); hold on; 
   end
-  xlabel('$t$','interpreter','latex','fontsize',18);
+  xlabel('$\dot{\mathcal{P}}t$','interpreter','latex','fontsize',18);
+  ylabel('dimensionless superheating','interpreter','latex','fontsize',18);
+  leg = legend(p,A_legent{:},'location','southeast');
+  set(leg,'interpreter','latex','fontsize',10);
+  set(gca,'xlim',[0 10]);
+  
+  print('-dpdf',[fnme,'_SH']);
+  
+  set(gca,'xscale','log','yscale','log','xlim',10.^[-4 1],'ylim',10.^[-4 0.1]);
+  set(leg,'location','northwest');
+  
+  print('-dpdf',[fnme,'_logSH']);
+  
+  delete(p); delete(leg);
+  for i=1:length(A)
+     p(i) = plot(A{i}.t*dcr(i),A{i}.F,'-','linewidth',2,'color',colr(i,:)); hold on; 
+     q(i) = plot(A{i}.t*dcr(i),A{i}.Ff,'-k','linewidth',0.5); hold on; 
+     qq(i) = plot(A{i}.t*dcr(i),A{i}.Fb,'--k','linewidth',0.5); hold on; 
+  end
+  ylabel('$F$','interpreter','latex','fontsize',18);
+  leg = legend(p,A_legent{:},'location','southeast');
+  set(leg,'interpreter','latex','fontsize',10);
+  set(gca,'xscale','linear','yscale','linear','xlim',[0 10],'ylim',[0 1]);
+  print('-dpdf',[fnme,'_F']);
+  
+  set(gca,'xscale','log','yscale','log','xlim',10.^[-2 1],'ylim',10.^[-4 0.1]);
+  set(leg,'location','southeast');
+  print('-dpdf',[fnme,'_logF']);
+  
+  delete(p); delete(q); delete(qq); delete(leg);
+  for i=1:length(A)
+     p(i) = plot(A{i}.F,A{i}.Cs0-A{i}.Cs1,'-','linewidth',2,'color',colr(i,:)); hold on; 
+  end
+  xlabel('$F$','interpreter','latex','fontsize',18);
   ylabel('dimensionless superheating','interpreter','latex','fontsize',18);
   leg = legend(p,A_legent{:},'location','northwest');
-  set(leg,'interpreter','latex','fontsize',18);
+  set(leg,'interpreter','latex','fontsize',10);
+  set(gca,'xlim',[0 1]);
+  
+  print('-dpdf',[fnme,'_F_SH']);
+ 
+  
+  close(f);
