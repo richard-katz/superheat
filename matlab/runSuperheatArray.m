@@ -34,21 +34,9 @@ function [A B C] = runSuperheatArray(fname)
       end
       A{i} = loadSuperheatTableOutput(fnme);
       A_legent{i} = ['$\log\dot{\mathcal{P}}=',num2str(log10(dcr(i))),'$'];
-% $$$       subplot(2,1,1); loglog(A{i}.F,A{i}.Cs0-A{i}.Cs1,'-','linewidth',2); hold on;
-% $$$       subplot(2,1,2); q(i) = semilogx(A{i}.t,A{i}.F,'-','linewidth',2); hold on;
-% $$$       subplot(2,1,2); semilogx(A{i}.t,A{i}.Ff,'-','linewidth',1); hold on;
-% $$$       subplot(2,1,2); semilogx(A{i}.t,A{i}.Fb,'-','linewidth',1); hold on;
-% $$$       legent{i} = ['$\log\dot{\mathcal{P}}=',num2str(log10(dcr(i))),'$'];
   end
-% $$$   leg = legend(q, legent{:},'location','northwest');
-% $$$   set(leg,'interpreter','latex');
-% $$$   subplot(2,1,1); xlabel('$F$','interpreter','latex')
-% $$$   ylabel('dimensionless superheating','interpreter','latex')
-% $$$   set(gca,'xlim',[1e-6 1],'ylim',[1e-3 1]);
-% $$$   subplot(2,1,2); xlabel('$t$','interpreter','latex')
-% $$$   hold off;
     
-  % decompression rate series
+  % partition coefficient series
   %figure(2); clear legent;
   K = logspace(-5,-1,5);  
   for i=1:length(K)
@@ -59,44 +47,22 @@ function [A B C] = runSuperheatArray(fname)
       end
       B{i} = loadSuperheatTableOutput(fnme);
       B_legent{i} = ['$\log K=',num2str(log10(K(i))),'$'];
-% $$$       subplot(2,1,1); p(i) = loglog(B{i}.F,B{i}.Cs0-B{i}.Cs1,'-','linewidth',2); hold on;
-% $$$       subplot(2,1,2); q(i) = semilogx(B{i}.t,B{i}.F,'-','linewidth',2); hold on;
-% $$$       subplot(2,1,2); semilogx(B{i}.t,B{i}.Ff,'-','linewidth',1); hold on;
-% $$$       subplot(2,1,2); semilogx(B{i}.t,B{i}.Fb,'-','linewidth',1); hold on;
-% $$$       legent{i} = ['$\log K=',num2str(log10(K(i))),'$'];
   end
-% $$$   leg = legend(q, legent{:},'location','northwest');
-% $$$   set(leg,'interpreter','latex');
-% $$$   subplot(2,1,1); xlabel('$F$','interpreter','latex')
-% $$$   ylabel('dimensionless superheating','interpreter','latex')
-% $$$   set(gca,'xlim',[1e-6 1],'ylim',[1e-3 1]);
-% $$$   subplot(2,1,2); xlabel('$t$','interpreter','latex')
-% $$$   hold off;
   
   % Stefan series
   %figure(3); clear legent q;
-  St = 3*logspace(-1,1,3);  
+  St = 3*logspace(-2,2,5);  
   for i=1:length(St)
       fnme = [par.namebase,'_St_',num2str(i,'%3.3d')]
       if ~exist([fnme,'_ts.csv'],'file')
           rcall = [call,' -St ',num2str(St(i)),' -filename ',fnme,' > ',fnme,'.out'];
           unix(rcall);
       end
+      C{i} = loadSuperheatTableOutput(fnme);
       C_legent{i} = ['St$=',num2str(St(i)),'$'];
-% $$$       C{i} = loadSuperheatTableOutput(fnme);
-% $$$       subplot(2,1,1); loglog(C{i}.F,C{i}.Cs0-C{i}.Cs1,'-','linewidth',2); hold on;
-% $$$       subplot(2,1,2); q(i) = semilogx(C{i}.t,C{i}.F,'-','linewidth',2); hold on;
-% $$$       subplot(2,1,2); semilogx(C{i}.t,C{i}.Ff,'-','linewidth',1); hold on;
-% $$$       subplot(2,1,2); semilogx(C{i}.t,C{i}.Fb,'-','linewidth',1); hold on;
-% $$$       legent{i} = ['St$=',num2str(St(i)),'$'];
   end
-% $$$   leg = legend(q, legent{:},'location','northwest');
-% $$$   set(leg,'interpreter','latex');
-% $$$   subplot(2,1,1); xlabel('$F$','interpreter','latex')
-% $$$   ylabel('dimensionless superheating','interpreter','latex')
-% $$$   set(gca,'xlim',[1e-6 1],'ylim',[1e-3 1]);
-% $$$   subplot(2,1,2); xlabel('$t$','interpreter','latex')
-% $$$   hold off;
+
+  %%%%%%%%%% MAKE PLOTS %%%%%%%%%%%%%
   
   % axis dimensions, inches
   axh = 3;    % axis height
@@ -111,12 +77,12 @@ function [A B C] = runSuperheatArray(fname)
   
   ax = axes('units','inches','position',[axl axb axw axh]);
   
-  fnme = [par.namebase,'_decmpr_'];
   map = colormap;
   [r c] = size(map);
   row = round(linspace(1,r,length(A)));
   colr = map(row',:);
   
+  fnme = [par.namebase,'_decmpr_'];
   % plot of superheating versus time
   for i=1:length(A)
      p(i) = plot(A{i}.t*dcr(i),A{i}.Cs0-A{i}.Cs1,'-','linewidth',2,'color',colr(i,:)); hold on; 
@@ -127,12 +93,12 @@ function [A B C] = runSuperheatArray(fname)
   set(leg,'interpreter','latex','fontsize',10);
   set(gca,'xlim',[0 10]);
   
-  print('-dpdf',[fnme,'_SH']);
+  print('-dpdf',[fnme,'t_SH']);
   
   set(gca,'xscale','log','yscale','log','xlim',10.^[-4 1],'ylim',10.^[-4 0.1]);
   set(leg,'location','northwest');
   
-  print('-dpdf',[fnme,'_logSH']);
+  print('-dpdf',[fnme,'logt_logSH']);
   
   delete(p); delete(leg);
   for i=1:length(A)
@@ -144,11 +110,11 @@ function [A B C] = runSuperheatArray(fname)
   leg = legend(p,A_legent{:},'location','southeast');
   set(leg,'interpreter','latex','fontsize',10);
   set(gca,'xscale','linear','yscale','linear','xlim',[0 10],'ylim',[0 1]);
-  print('-dpdf',[fnme,'_F']);
+  print('-dpdf',[fnme,'t_F']);
   
   set(gca,'xscale','log','yscale','log','xlim',10.^[-2 1],'ylim',10.^[-4 0.1]);
   set(leg,'location','southeast');
-  print('-dpdf',[fnme,'_logF']);
+  print('-dpdf',[fnme,'logt_logF']);
   
   delete(p); delete(q); delete(qq); delete(leg);
   for i=1:length(A)
@@ -160,7 +126,53 @@ function [A B C] = runSuperheatArray(fname)
   set(leg,'interpreter','latex','fontsize',10);
   set(gca,'xlim',[0 1]);
   
-  print('-dpdf',[fnme,'_F_SH']);
+  print('-dpdf',[fnme,'_logF_logSH']);
  
+  delete(p); delete(leg);
+
+  fnme = [par.namebase,'_K_'];
   
-  close(f);
+  for i=1:length(K)
+      p(i) = plot(B{i}.t*dcr(i),B{i}.Cs0-B{i}.Cs1,'-','linewidth',2,'color',colr(i,:)); hold on;
+  end
+  set(gca,'xlim',[1e-5 5e2],'ylim',[1e-3 1.1]);
+  xlabel('$\dot{\mathcal{P}}t$','interpreter','latex','fontsize',18);
+  ylabel('dimensionless superheating','interpreter','latex','fontsize',18);
+  leg = legend(p, B_legent{:},'location','northwest');
+  set(leg,'interpreter','latex');
+
+  print('-dpdf',[fnme,'t_SH']);
+  
+  delete(p); delete(leg);
+  for i=1:length(K)
+      p(i) = plot(B{i}.t,B{i}.F,'-','linewidth',2,'color',colr(i,:)); hold on;
+      %q(i) = plot(B{i}.t,B{i}.Ff,'-k','linewidth',0.5); hold on; 
+      qq(i) = plot(B{i}.t,B{i}.Fb,'--k','linewidth',0.5); hold on; 
+  end
+  set(gca,'xlim',[1e-3 2],'ylim',[1e-4 1.1]);
+  ylabel('$F$','interpreter','latex','fontsize',18);
+  leg = legend(p, B_legent{:},'location','northwest');
+  set(leg,'interpreter','latex');
+
+  print('-dpdf',[fnme,'logt_logF']);
+
+  set(gca,'xscale','linear','yscale','linear')
+  axis tight;
+  print('-dpdf',[fnme,'t_F']);
+  
+  delete(p); delete(qq); delete(leg); clear p;
+  
+  row = round(linspace(1,r,length(C)));
+  colr = map(row',:);
+  
+  for i=1:length(St)
+      p(i) = plot(C{i}.t,C{i}.Cs0-C{i}.Cs1,'-','linewidth',2,'color',colr(i,:)); hold on;
+  end
+  set(gca,'xscale','log','yscale','log','ylim',[1e-3 1.1],'xlim',[1e-2 10])
+  xlabel('$\dot{\mathcal{P}}t$','interpreter','latex','fontsize',18);
+  ylabel('dimensionless superheating','interpreter','latex','fontsize',18);
+  leg = legend(p, C_legent{:},'location','northwest');
+  set(leg,'interpreter','latex');
+  
+  
+  %close(f);
