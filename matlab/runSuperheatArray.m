@@ -84,7 +84,7 @@ function [A B C] = runSuperheatArray(fname)
   
   fnme = [par.namebase,'_decmpr_'];
   % plot of superheating versus time
-  for i=1:length(A)
+  for i=length(A):-1:1
      p(i) = plot(A{i}.t*dcr(i),A{i}.Cs0-A{i}.Cs1,'-','linewidth',2,'color',colr(i,:)); hold on; 
   end
   xlabel('$\dot{\mathcal{P}}t$','interpreter','latex','fontsize',18);
@@ -101,7 +101,7 @@ function [A B C] = runSuperheatArray(fname)
   print('-dpdf',[fnme,'logt_logSH']);
   
   delete(p); delete(leg);
-  for i=1:length(A)
+  for i=length(A):-1:1
      p(i) = plot(A{i}.t*dcr(i),A{i}.F,'-','linewidth',2,'color',colr(i,:)); hold on; 
      q(i) = plot(A{i}.t*dcr(i),A{i}.Ff,'-k','linewidth',0.5); hold on; 
      qq(i) = plot(A{i}.t*dcr(i),A{i}.Fb,'--k','linewidth',0.5); hold on; 
@@ -141,7 +141,7 @@ function [A B C] = runSuperheatArray(fname)
   leg = legend(p, B_legent{:},'location','northwest');
   set(leg,'interpreter','latex');
 
-  print('-dpdf',[fnme,'t_SH']);
+  print('-dpdf',[fnme,'logt_logSH']);
   
   delete(p); delete(leg);
   for i=1:length(K)
@@ -165,6 +165,8 @@ function [A B C] = runSuperheatArray(fname)
   row = round(linspace(1,r,length(C)));
   colr = map(row',:);
   
+  fnme = [par.namebase,'_St_'];
+  
   for i=1:length(St)
       p(i) = plot(C{i}.t,C{i}.Cs0-C{i}.Cs1,'-','linewidth',2,'color',colr(i,:)); hold on;
   end
@@ -173,6 +175,20 @@ function [A B C] = runSuperheatArray(fname)
   ylabel('dimensionless superheating','interpreter','latex','fontsize',18);
   leg = legend(p, C_legent{:},'location','northwest');
   set(leg,'interpreter','latex');
+
+  print('-dpdf',[fnme,'logt_logSH']);
   
+  delete(p); delete(leg);
+  for i=1:length(St)
+      p(i) = plot(C{i}.t,C{i}.F,'-','linewidth',2,'color',colr(i,:)); hold on;
+      %q(i) = plot(B{i}.t,B{i}.Ff,'-k','linewidth',0.5); hold on; 
+      qq(i) = plot(C{i}.t,C{i}.Fb,'--k','linewidth',0.5); hold on; 
+  end
+  set(gca,'xlim',[1e-3 10],'ylim',[1e-5 1.1]);
+  ylabel('$F$','interpreter','latex','fontsize',18);
+  leg = legend(p, C_legent{:},'location','northwest');
+  set(leg,'interpreter','latex');
+
+  print('-dpdf',[fnme,'logt_logF']);
   
-  %close(f);
+  close(f);
