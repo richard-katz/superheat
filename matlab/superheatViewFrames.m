@@ -55,10 +55,10 @@ function [A B C] = superheatViewFrames(filebase,frames)
   title(ti,'interpreter','latex',FS{:});
 
   subplot(3,1,2); hold on;
-  p(1) = plot(C.t,1-C.R.^3,'-b','linewidth',2);
+  p(1) = plot(C.t,C.F,'-b','linewidth',2);
   p(3) = plot(C.t,C.Fb,'-k','linewidth',2);
   p(2) = plot(C.t,C.Ff,'--r','linewidth',2);
-  p(4) = plot(C.t,C.Vl./(C.Vl + C.R.^3),'-m','linewidth',2);
+  p(4) = plot(C.t,C.phi,'-m','linewidth',2);
   leg = legend(p(1:4),'grain $F(t)$','fractional $F(t)$','batch $F(t)$','$\phi(t)$');
   set(leg,'interpreter','latex',FS{:},'location','northwest');
   
